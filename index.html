@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>真．排班小幫手．改 ver.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* 隱藏數字輸入框上下箭頭 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* 表格基礎設定 */
+        th, td { white-space: nowrap; }
+        
+        /* 強制所有表格內的輸入框絕對置中，並移除左右內邊距以避免文字偏移 */
+        .data-cell, .limit-input {
+            text-align: center;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        /* 凍結首欄設定 (精確對齊) */
+        .sticky-col-1 { position: sticky; left: 0; z-index: 10; background-color: white; }
+        .sticky-col-2 { position: sticky; left: 45px; z-index: 10; background-color: white; }
+        
+        thead .sticky-col-1, thead .sticky-col-2 { z-index: 20; background-color: #e5e7eb; }
+        .preview-sticky { position: sticky; left: 0; z-index: 10; border-right: 2px solid #e5e7eb; }
+        
+        /* 動態變色提示底色 */
+        .highlight-cell { background-color: #fef08a !important; transition: background-color 0.3s; }
+        
+        /* 禁用狀態的按鈕樣式 */
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 md:p-8">
+    <div class="mx-auto bg-white p-6 md:p-8 rounded-xl shadow-lg" style="max-w: 98%;">
+        <h1 class="text-2xl font-bold mb-6 border-b pb-4 text-gray-900">排班參數設定</h1>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+            <div class="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <h2 class="font-bold text-blue-700">1. 排班年月與假日設定</h2>
+                <div class="flex gap-4">
+                    <label>年：<input type="number" id="setYear" class="border border-gray-300 rounded px-2 py-1 w-20 text-center"></label>
+                    <label>月：<input type="number" id="setMonth" class="border border-gray-300 rounded px-2 py-1 w-16 text-center"></label>
+                </div>
+                <div>
+                    <label class="block mb-2">國定假日 (Holiday)：</label>
+                    <textarea id="holidays" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="YYYY/MM/DD, YYYY/MM/DD"> 2026/06/19, 2026/09/25, 2026/10/10, 2027/01/01, 2027/02/28</textarea>
+                </div>
+                <div>
+                    <label class="block mb-2">非國定假日 (補班等)：</label>
+                    <textarea id="nonHolidays" rows="1" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none"></textarea>
+                </div>
+            </div>
+
+            <div class="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <h2 class="font-bold text-blue-700">2. QOD 與特殊規則</h2>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="qodToggle" class="w-5 h-5 cursor-pointer">
+                    <label for="qodToggle" class="cursor-pointer font-medium">啟用 QOD (可接受隔日值班)</label>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <span>預班+年休超過</span>
+                    <input type="number" id="qodThreshold" value="7" class="border border-gray-300 rounded px-2 py-1 w-16 text-center">
+                    <span>天的人員會 "預設接受 QOD排班"</span>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <p class="text-sm text-gray-600 mb-1">1. 排班邏輯優先順序：值班上限及加權資料 >> 平分值班天數 >> 平分值班加權 >> 考慮年休及預班 >> 考慮預值班</p>
+                    <p class="text-sm text-gray-600 mb-1">2. 依然排不出來會嘗試降低 "預設接受 QOD排班" 的 cutoff 值</p>
+                    <p class="text-sm text-gray-600 mb-1">3. 還是排不出來會強制所有人接受 "QOD值班"</p>
+                    <p class="text-sm text-gray-600 mb-1">4. 若勾選啟用QOD排班 >> 嘗試在50次排班內，輸出QOD總數最低的版本</p>
+                    <p class="text-sm text-gray-600 mb-1">5. 排班加權：週六=3，週日=2，周五=1，周一~三=0，周四=-1</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <div class="flex justify-between items-end mb-2">
+                <h2 class="font-bold text-blue-700">3. 人員設定 (支援 Excel 範圍貼上)</h2>
+                <div class="flex gap-2">
+                    <button onclick="addPersonRowAction()" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors shadow-sm">
+                        + 新增人員
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto border border-gray-300 rounded-md shadow-sm" style="max-height: 500px;">
+                <table class="w-full text-sm text-left border-collapse" id="personnelTable">
+                    <thead id="personnelThead"></thead>
+                    <tbody id="personnelBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <div class="flex justify-between items-end mb-2">
+                <h2 class="font-bold text-blue-700">4. 人員值班天數上限 (day 下方填入加權: -1, 0, 1, 2, 3)</h2>
+                <button onclick="clearLimitTable()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors shadow-sm text-sm">
+                    清空上限資料
+                </button>
+            </div>
+            <div class="overflow-x-auto border border-gray-300 rounded-md shadow-sm">
+                <table class="w-full text-sm text-center border-collapse" id="limitTable">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 60px; width: 60px;">DR</th>
+                            <th class="p-2 border-r border-gray-300 text-red-700" style="min-width: 90px; width: 90px;">總班數上限</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 1</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 2</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 3</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 4</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 5</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 6</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 7</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 8</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 9</th>
+                            <th class="p-2" style="min-width: 50px;">day 10</th>
+                        </tr>
+                    </thead>
+                    <tbody id="limitBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="border-t pt-4">
+            <div class="flex items-center">
+                <button id="submitBtn" onclick="runSchedule()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 flex items-center transition-all">
+                    <svg id="loadingIcon" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    執行排班運算
+                </button>
+                <span id="statusText" class="ml-4 text-gray-600 font-medium"></span>
+            </div>
+            <div id="finalMessageBlock" class="mt-4 p-4 bg-green-50 text-green-800 border border-green-200 rounded hidden whitespace-pre-wrap text-sm font-mono shadow-inner"></div>
+        </div>
+
+        <div id="resultContainer" class="mt-8 pt-6 border-t border-gray-300 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-green-700 text-xl">5. 排班結果預覽</h2>
+                <button id="downloadExcelBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold shadow">
+                    📥 下載 Excel 完整班表
+                </button>
+            </div>
+            
+            <h3 class="font-bold text-gray-700 mb-2">主班表</h3>
+            <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-sm mb-6">
+                <table class="w-full text-sm text-center whitespace-nowrap">
+                    <thead id="resultThead" class="bg-gray-200 text-gray-700"></thead>
+                    <tbody id="resultTbody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h3 class="font-bold text-gray-700 mb-2">星期幾值班統計</h3>
+                    <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-sm">
+                        <table id="dutyTable" class="w-full text-sm text-center"></table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-700 mb-2">值班日加權統計</h3>
+                    <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-sm">
+                        <table id="hrTable" class="w-full text-sm text-center"></table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-700 mb-2">QOD 統計</h3>
+                    <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-sm">
+                        <table id="qodTable" class="w-full text-sm text-center"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MAX_DAYS = 15;
+        let currentYear = 2026;
+        let currentMonth = 1;
+        
+        let lastScheduleData = null;
+        let lastDutyStats = null;
+        let lastHrStats = null;
+        let lastQodStats = null;
+
+        // 還原系統狀態儲存區
+        let historyStack = [];
+        let isUndoAction = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            let nextYear = today.getFullYear();
+            let nextMonth = today.getMonth() + 2; 
+
+            if (nextMonth > 12) {
+                nextMonth = 1;
+                nextYear += 1;
+            }
+
+            document.getElementById('setYear').value = nextYear;
+            document.getElementById('setMonth').value = nextMonth;
+            
+            currentYear = nextYear;
+            currentMonth = nextMonth;
+
+            initTableHeaders();
+            
+            // 停用狀態儲存以避免初始化過程產生過多歷史紀錄
+            isUndoAction = true;
+            addPersonRow('A', '黑傑克', 'DOC1001A');
+            addPersonRow('B', '朝田龍太郎', 'DOC1002B');
+            addPersonRow('C', '', '');
+            addPersonRow('D', '', '');
+            isUndoAction = false;
+            
+            updateLimitTable();
+            saveState(); // 儲存初始狀態
+
+            setupPasteHandler();
+            setupLimitTableStateLogic();
+            
+            // 將兩個表格綁定鍵盤導航邏輯
+            setupTableNavigation('personnelTable');
+            setupTableNavigation('limitTable');
+            
+            setupUndoListeners();
+        });
+
+        // --- 快捷鍵導航邏輯 (共用) ---
+        function setupTableNavigation(tableId) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            table.addEventListener('keydown', function(e) {
+                const target = e.target;
+                if (target.tagName !== 'INPUT') return;
+
+                const tr = target.closest('tr');
+                const tbody = tr.parentElement;
+                if (tbody.tagName !== 'TBODY') return;
+
+                const trs = Array.from(tbody.querySelectorAll('tr'));
+                const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled])')); // 僅在啟用狀態的 input 之間導航
+                
+                // 如果目前所在的 input 找不到（可能被 disabled 了），則中止
+                if (rowInputs.indexOf(target) === -1) return;
+
+                const rowIndex = trs.indexOf(tr);
+                const colIndex = rowInputs.indexOf(target);
+
+                let nextRow = rowIndex;
+                let nextCol = colIndex;
+                let handled = false;
+
+                if (e.key === 'ArrowUp') {
+                    nextRow = Math.max(0, rowIndex - 1);
+                    handled = true;
+                } else if (e.key === 'ArrowDown') {
+                    nextRow = Math.min(trs.length - 1, rowIndex + 1);
+                    handled = true;
+                } else if (e.key === 'ArrowLeft') {
+                    if (target.type === 'number' || target.selectionStart === 0) {
+                        nextCol = Math.max(0, colIndex - 1);
+                        handled = true;
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    if (target.type === 'number' || target.selectionEnd === target.value.length) {
+                        nextCol = Math.min(rowInputs.length - 1, colIndex + 1);
+                        handled = true;
+                    }
+                } else if (e.key === 'Enter') {
+                    if (e.shiftKey) {
+                        nextRow = Math.max(0, rowIndex - 1);
+                    } else {
+                        nextRow = Math.min(trs.length - 1, rowIndex + 1);
+                    }
+                    handled = true;
+                }
+                
+                if (handled) {
+                    e.preventDefault();
+                    let nextTr = trs[nextRow];
+                    let nextInputs = Array.from(nextTr.querySelectorAll('input:not([disabled])'));
+                    
+                    // 如果上下移動時，目標列的可輸入格子數量較少，則游標停留在最後一個可用格子
+                    let finalCol = Math.min(nextCol, nextInputs.length - 1);
+                    let nextInput = nextInputs[finalCol];
+                    
+                    if (nextInput) {
+                        nextInput.focus();
+                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
+                            nextInput.select();
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- 還原系統邏輯 ---
+        function saveState() {
+            if (isUndoAction) return;
+            const state = [];
+            document.querySelectorAll('.personnel-row').forEach(row => {
+                const rowData = [];
+                row.querySelectorAll('input').forEach(input => rowData.push(input.value));
+                state.push(rowData);
+            });
+            
+            historyStack.push(state);
+            if (historyStack.length > 30) historyStack.shift(); // 限制最多 30 步以防記憶體溢出
+        }
+
+        function undo() {
+            if (historyStack.length <= 1) return;
+            
+            isUndoAction = true;
+            historyStack.pop(); // 移除當前狀態
+            const previousState = historyStack[historyStack.length - 1];
+            
+            const tbody = document.getElementById('personnelBody');
+            tbody.innerHTML = '';
+            
+            previousState.forEach(rowData => {
+                addPersonRow(rowData[0], rowData[1], rowData[2]);
+                const newRow = tbody.lastElementChild;
+                const inputs = newRow.querySelectorAll('input');
+                rowData.forEach((val, i) => {
+                    if (inputs[i]) inputs[i].value = val;
+                });
+            });
+            
+            updateLimitTable();
+            isUndoAction = false;
+        }
+
+        function setupUndoListeners() {
+            // 監聽鍵盤 Ctrl+Z / Cmd+Z
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo();
+                }
+            });
+            
+            // 監聽手動修改 (失焦後儲存狀態)
+            document.getElementById('personnelTable').addEventListener('change', function(e) {
+                if (e.target.tagName === 'INPUT') {
+                    saveState();
+                }
+            });
+        }
+
+        // --- 表格基本邏輯 ---
+        function initTableHeaders() {
+            const thead = document.getElementById('personnelThead');
+            let tr1 = `<tr>
+                <th class="p-1 text-center font-semibold bg-gray-200 sticky-col-1 border-r border-b border-gray-300" style="min-width: 45px; width: 45px;" rowspan="2">操作</th>
+                <th class="p-1 text-center font-semibold bg-gray-200 sticky-col-2 border-r border-b border-gray-300" style="min-width: 50px; width: 50px;" rowspan="2">DR</th>
+                <th class="p-1 text-center font-semibold bg-gray-200 border-r border-b border-gray-300" style="min-width: 100px; width: 100px;" rowspan="2">Name</th>
+                <th class="p-1 text-center font-semibold bg-gray-200 border-r border-b border-gray-300" style="min-width: 120px; width: 120px;" rowspan="2">ID</th>
+                <th class="p-1 text-center font-semibold bg-blue-100 border-r border-b border-gray-300" colspan="${MAX_DAYS}">年休日期 (最多${MAX_DAYS}日)</th>
+                <th class="p-1 text-center font-semibold bg-green-100 border-r border-b border-gray-300" colspan="${MAX_DAYS}">預假日期 (最多${MAX_DAYS}日)</th>
+                <th class="p-1 text-center font-semibold bg-yellow-100 border-b border-gray-300" colspan="${MAX_DAYS}">預值日期 (最多${MAX_DAYS}日)</th>
+            </tr><tr>`;
+            
+            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-blue-50 text-gray-600 border-b border-gray-300 ${i===MAX_DAYS?'border-r':''} min-w-[38px] w-[38px]">${i}</th>`;
+            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-green-50 text-gray-600 border-b border-gray-300 ${i===MAX_DAYS?'border-r':''} min-w-[38px] w-[38px]">${i}</th>`;
+            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-yellow-50 text-gray-600 border-b border-gray-300 min-w-[38px] w-[38px]">${i}</th>`;
+            thead.innerHTML = tr1 + `</tr>`;
+        }
+
+        function addPersonRow(dr = '', name = '', id = '') {
+            const tbody = document.getElementById('personnelBody');
+            const tr = document.createElement('tr');
+            tr.className = 'personnel-row hover:bg-gray-50';
+            
+            let html = `
+                <td class="p-1 text-center sticky-col-1 bg-white border-r border-b border-gray-200"><button onclick="removeRowAction(this)" class="text-red-500 hover:bg-red-50 rounded px-2 font-bold">&times;</button></td>
+                <td class="p-1 text-center sticky-col-2 bg-white border-r border-b border-gray-200"><input type="text" name="dr" value="${dr}" oninput="updateLimitTable()" class="w-full border border-gray-300 rounded data-cell dr-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>
+                <td class="p-1 text-center border-r border-b border-gray-200"><input type="text" name="name" value="${name}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>
+                <td class="p-1 text-center border-r border-b border-gray-200"><input type="text" name="id" value="${id}" class="w-full border border-gray-300 rounded text-xs data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>
+            `;
+
+            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i===MAX_DAYS?'border-r':''}"><input type="number" name="yLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i===MAX_DAYS?'border-r':''}"><input type="number" name="pLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200"><input type="number" name="wDuty${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+            if (!isUndoAction) updateLimitTable();
+        }
+
+        // 按鈕觸發的新增行為，需紀錄還原點
+        function addPersonRowAction() {
+            addPersonRow();
+            saveState();
+        }
+
+        // 按鈕觸發的刪除行為，需紀錄還原點
+        function removeRowAction(btn) {
+            btn.closest('tr').remove();
+            updateLimitTable();
+            saveState();
+        }
+
+        function clearLimitTable() {
+            const limitBody = document.getElementById('limitBody');
+            limitBody.querySelectorAll('input').forEach(input => {
+                input.value = '';
+            });
+            // 重新觸發狀態更新，將右側格子全部上鎖
+            limitBody.querySelectorAll('tr.limit-row').forEach(row => {
+                updateRowState(row);
+            });
+        }
+
+        function updateLimitTable() {
+            const limitBody = document.getElementById('limitBody');
+            
+            // 1. 備份重繪前的原有輸入資料
+            const currentData = {};
+            limitBody.querySelectorAll('tr.limit-row').forEach(row => {
+                const dr = row.getAttribute('data-dr');
+                currentData[dr] = {};
+                row.querySelectorAll('input').forEach(input => {
+                    currentData[dr][input.name] = input.value;
+                });
+            });
+
+            // 2. 清空並重建表格
+            limitBody.innerHTML = ''; 
+            const drInputs = document.querySelectorAll('.dr-input');
+
+            drInputs.forEach((input, index) => {
+                const drValue = input.value.trim() || `Row_${index}`;
+                const pastData = currentData[drValue] || {}; // 還原備份資料
+                
+                const limitVal = pastData['limit'] !== undefined ? pastData['limit'] : '';
+                
+                let trHtml = `
+                    <tr class="limit-row bg-white hover:bg-gray-50 transition-colors" data-dr="${drValue}">
+                        <td class="p-2 border-r border-gray-300 font-bold bg-gray-100">${drValue}</td>
+                        <td class="p-1 border-r border-gray-300"><input type="number" name="limit" value="${limitVal}" class="w-full border border-gray-300 rounded bg-red-50 limit-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px; min-width: 60px;"></td>
+                `;
+                
+                for (let day = 1; day <= 10; day++) {
+                    let nameAttr = day - 2; 
+                    let dayVal = pastData[nameAttr] !== undefined ? pastData[nameAttr] : '';
+                    trHtml += `<td class="p-1 ${day===10 ? '' : 'border-r border-gray-300'}"><input type="number" name="${nameAttr}" value="${dayVal}" class="w-full border border-gray-300 rounded limit-input day-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" style="height: 28px; min-width: 45px;"></td>`;
+                }
+                
+                trHtml += `</tr>`;
+                limitBody.insertAdjacentHTML('beforeend', trHtml);
+            });
+
+            // 3. 強制對重建後的所有列執行一次狀態判斷（解鎖/上鎖/變色）
+            limitBody.querySelectorAll('tr.limit-row').forEach(row => {
+                updateRowState(row);
+            });
+        }
+
+        function setupLimitTableStateLogic() {
+            document.getElementById('limitTable').addEventListener('input', function(e) {
+                const row = e.target.closest('tr.limit-row');
+                if (row) {
+                    updateRowState(row);
+                }
+            });
+        }
+
+        function updateRowState(row) {
+            const limitInput = row.querySelector('input[name="limit"]');
+            const limitValue = parseInt(limitInput.value, 10) || 0;
+            const dayInputs = Array.from(row.querySelectorAll('.day-input'));
+            const validNumbers = ['-1', '0', '1', '2', '3'];
+
+            dayInputs.forEach((input, index) => {
+                const val = input.value.trim();
+                if (index < limitValue) {
+                    // 解鎖開放輸入
+                    input.disabled = false;
+                    input.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
+                    
+                    if (val === '' || !validNumbers.includes(val)) {
+                        input.classList.add('highlight-cell');
+                    } else {
+                        input.classList.remove('highlight-cell');
+                    }
+                } else {
+                    // 鎖定並禁用輸入
+                    input.disabled = true;
+                    input.value = ''; // 強制清空超出上限的數值
+                    input.classList.remove('highlight-cell');
+                    input.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
+                }
+            });
+        }
+
+        function setupPasteHandler() {
+            document.getElementById('personnelTable').addEventListener('paste', function(e) {
+                e.preventDefault();
+                const activeElement = document.activeElement;
+                if (!activeElement.classList.contains('data-cell')) return;
+
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                const rows = pastedText.split(/\r?\n/).map(row => row.split('\t'));
+                if (rows.length === 0 || (rows.length === 1 && rows[0][0] === '')) return;
+
+                const tbody = document.getElementById('personnelBody');
+                const trs = Array.from(tbody.querySelectorAll('tr'));
+                const startRowIdx = trs.indexOf(activeElement.closest('tr'));
+                const inputsInStartRow = Array.from(trs[startRowIdx].querySelectorAll('input.data-cell'));
+                const startColIdx = inputsInStartRow.indexOf(activeElement);
+
+                for (let r = 0; r < rows.length; r++) {
+                    const rowData = rows[r];
+                    if (rowData.length === 1 && rowData[0] === '') continue; 
+
+                    let targetRow = trs[startRowIdx + r];
+                    if (!targetRow) { addPersonRow(); targetRow = tbody.querySelectorAll('tr')[startRowIdx + r]; }
+
+                    const inputsInTargetRow = Array.from(targetRow.querySelectorAll('input.data-cell'));
+                    for (let c = 0; c < rowData.length; c++) {
+                        if (inputsInTargetRow[startColIdx + c]) inputsInTargetRow[startColIdx + c].value = rowData[c].trim();
+                    }
+                }
+                updateLimitTable();
+                saveState(); // 貼上後儲存歷史狀態
+            });
+        }
+
+        function renderResultTable(data) {
+            const thead = document.getElementById('resultThead');
+            const tbody = document.getElementById('resultTbody');
+            thead.innerHTML = ''; tbody.innerHTML = '';
+            if (!data || data.length === 0) return;
+
+            let theadHtml = '<tr>';
+            data[0].forEach((col, index) => {
+                const stickyClass = index === 0 ? 'preview-sticky bg-gray-200' : '';
+                theadHtml += `<th class="p-2 border border-gray-300 font-semibold ${stickyClass}">${col ?? ''}</th>`;
+            });
+            theadHtml += '</tr>';
+            thead.innerHTML = theadHtml;
+
+            for (let i = 1; i < data.length; i++) {
+                let trHtml = '<tr class="hover:bg-gray-100 bg-white">';
+                data[i].forEach((cell, index) => {
+                    const stickyClass = index === 0 ? 'preview-sticky bg-gray-100 font-bold' : '';
+                    trHtml += `<td class="p-2 border border-gray-300 ${stickyClass}">${cell ?? ''}</td>`;
+                });
+                trHtml += '</tr>';
+                tbody.insertAdjacentHTML('beforeend', trHtml);
+            }
+        }
+
+        function renderGenericTable(tableId, data) {
+            const table = document.getElementById(tableId);
+            table.innerHTML = '';
+            if (!data || data.length === 0) return;
+
+            let html = '<thead class="bg-gray-200 text-gray-700"><tr>';
+            data[0].forEach(col => html += `<th class="p-2 border border-gray-300 font-semibold">${col ?? ''}</th>`);
+            html += '</tr></thead><tbody class="divide-y divide-gray-200">';
+            
+            for (let i = 1; i < data.length; i++) {
+                html += '<tr class="hover:bg-gray-100 bg-white">';
+                data[i].forEach((cell, index) => {
+                    const boldClass = index === 0 ? 'font-bold bg-gray-50' : '';
+                    html += `<td class="p-2 border border-gray-300 ${boldClass}">${cell ?? ''}</td>`;
+                });
+                html += '</tr>';
+            }
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+
+        async function runSchedule() {
+            const btn = document.getElementById('submitBtn');
+            const statusText = document.getElementById('statusText');
+            const loadingIcon = document.getElementById('loadingIcon');
+            const finalMessageBlock = document.getElementById('finalMessageBlock');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            btn.disabled = true;
+            loadingIcon.classList.remove('hidden'); 
+            statusText.textContent = '運算中，請勿關閉網頁... (可能需要數十秒)';
+            resultContainer.classList.add('hidden');
+            finalMessageBlock.classList.add('hidden');
+
+            currentYear = parseInt(document.getElementById('setYear').value) || 2026;
+            currentMonth = parseInt(document.getElementById('setMonth').value) || 1;
+
+            const config = {
+                year: currentYear,
+                month: currentMonth,
+                holidays: document.getElementById('holidays').value.split(',').map(s => s.trim()).filter(s => s),
+                nonHolidays: document.getElementById('nonHolidays').value.split(',').map(s => s.trim()).filter(s => s),
+                qodEnabled: document.getElementById('qodToggle').checked,
+                qodThreshold: parseInt(document.getElementById('qodThreshold').value) || 7,
+                personnel: [],
+                limits: {}
+            };
+
+            document.querySelectorAll('.personnel-row').forEach(row => {
+                const personData = {};
+                row.querySelectorAll('input').forEach(input => personData[input.name] = input.value);
+                config.personnel.push(personData);
+            });
+
+            document.querySelectorAll('.limit-row').forEach(row => {
+                const dr = row.getAttribute('data-dr');
+                config.limits[dr] = {};
+                row.querySelectorAll('input.limit-input').forEach(input => config.limits[dr][input.name] = input.value);
+            });
+
+            try {
+                const response = await fetch('https://schedule-api-653344616395.asia-east1.run.app/api/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    statusText.textContent = `✅ 計算完成！(總嘗試次數：${result.attempts})`;
+                    
+                    if (result.message && result.message.trim() !== '') {
+                        finalMessageBlock.textContent = result.message;
+                        finalMessageBlock.classList.remove('hidden');
+                    }
+                    
+                    lastScheduleData = result.schedule;
+                    lastDutyStats = result.duty_stats;
+                    lastHrStats = result.hr_stats;
+                    lastQodStats = result.qod_stats;
+                    
+                    resultContainer.classList.remove('hidden');
+                    renderResultTable(result.schedule);
+                    renderGenericTable('dutyTable', result.duty_stats);
+                    renderGenericTable('hrTable', result.hr_stats);
+                    renderGenericTable('qodTable', result.qod_stats);
+                    
+                    resultContainer.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    statusText.textContent = '❌ 排班錯誤！';
+                    alert("排班失敗：" + result.message);
+                }
+            } catch (error) {
+                statusText.textContent = '❌ 連線失敗！';
+                alert("無法連線至後端伺服器，請確認終端機已啟動 Python 伺服器 (指令: python app.py)。");
+            } finally {
+                btn.disabled = false;
+                loadingIcon.classList.add('hidden'); 
+            }
+        }
+
+        document.getElementById('downloadExcelBtn').addEventListener('click', () => {
+            if (!lastScheduleData) return;
+            
+            let exportData = [];
+            exportData.push(...lastScheduleData);
+            exportData.push([]); 
+            
+            exportData.push(['星期幾值班統計']);
+            exportData.push(...lastDutyStats);
+            exportData.push([]);
+            
+            exportData.push(['假日類型值班統計']);
+            exportData.push(...lastHrStats);
+            exportData.push([]);
+            
+            exportData.push(['QOD (隔日值班) 統計']);
+            exportData.push(...lastQodStats);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, "班表");
+            XLSX.writeFile(wb, `排班表_${currentYear}_${currentMonth}.xlsx`);
+        });
+    </script>
+</body>
+</html>
