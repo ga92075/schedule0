@@ -419,6 +419,7 @@
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 updateRowState(row);
             });
+            validateSubmitButton(); // 加入此行
         }
 
         function updateLimitTable() {
@@ -471,10 +472,24 @@
                 const row = e.target.closest('tr.limit-row');
                 if (row) {
                     updateRowState(row);
+                    validateSubmitButton(); // 加入此行
                 }
             });
         }
-
+        function validateSubmitButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            const hasErrors = document.querySelectorAll('.highlight-cell').length > 0;
+        
+            submitBtn.disabled = hasErrors;
+        
+            if (hasErrors) {
+                submitBtn.title = '請先完成高亮(黃色)欄位的填寫';
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.title = '';
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
         function updateRowState(row) {
             const limitInput = row.querySelector('input[name="limit"]');
             const limitValue = parseInt(limitInput.value, 10) || 0;
@@ -658,7 +673,7 @@
                 statusText.textContent = '❌ 連線失敗！';
                 alert("無法連線至後端伺服器，請確認終端機已啟動 Python 伺服器 (指令: python app.py)。");
             } finally {
-                btn.disabled = false;
+                validateSubmitButton();
                 loadingIcon.classList.add('hidden'); 
             }
         }
