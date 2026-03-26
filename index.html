@@ -75,7 +75,6 @@
                     <p class="text-sm text-gray-600 mb-1">5. 排班加權：週六=3，週日=2，周五=1，周一~三=0，周四=-1</p>
                     <p class="text-sm text-gray-600 mb-1">6. 如果預值的日期不符合平均值班上限與加權的原則，將視情況忽略該預值要求。但是可以藉由設定4. 特例值班天數設定與加權，填入加權的數字來量身打造，符合預值得加權要求，就可以創造特例</p>
                     <p class="text-sm text-gray-600 mb-1"> ex 黑傑克希望預值前三個星期日但是不符合平均排班的原則，排不出心儀的班表： 設定4. 特例值班天數設定與加權，設定特例值班天數 = 6 加權 = 2, 2, 2, 0, 0, 0 >> 可以設定預值前三個星期日</p>
-
                 </div>
             </div>
         </div>
@@ -233,6 +232,22 @@
             setupUndoListeners();
         });
 
+        // 驗證按鈕狀態
+        function validateSubmitButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            const hasErrors = document.querySelectorAll('.highlight-cell').length > 0;
+            
+            submitBtn.disabled = hasErrors;
+            
+            if (hasErrors) {
+                submitBtn.title = '請先完成高亮(黃色)欄位的填寫';
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.title = '';
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
         // --- 快捷鍵導航邏輯 (共用) ---
         function setupTableNavigation(tableId) {
             const table = document.getElementById(tableId);
@@ -240,14 +255,14 @@
 
             table.addEventListener('keydown', function(e) {
                 const target = e.target;
-                if (target.tagName !== 'INPUT') return;
+                if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT') return;
 
                 const tr = target.closest('tr');
                 const tbody = tr.parentElement;
                 if (tbody.tagName !== 'TBODY') return;
 
                 const trs = Array.from(tbody.querySelectorAll('tr'));
-                const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled])')); // 僅在啟用狀態的 input 之間導航
+                const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])')); // 僅在啟用狀態的 input 之間導航
                 
                 // 如果目前所在的 input 找不到（可能被 disabled 了），則中止
                 if (rowInputs.indexOf(target) === -1) return;
@@ -266,12 +281,12 @@
                     nextRow = Math.min(trs.length - 1, rowIndex + 1);
                     handled = true;
                 } else if (e.key === 'ArrowLeft') {
-                    if (target.type === 'number' || target.selectionStart === 0) {
+                    if (target.type === 'number' || target.tagName === 'SELECT' || target.selectionStart === 0) {
                         nextCol = Math.max(0, colIndex - 1);
                         handled = true;
                     }
                 } else if (e.key === 'ArrowRight') {
-                    if (target.type === 'number' || target.selectionEnd === target.value.length) {
+                    if (target.type === 'number' || target.tagName === 'SELECT' || target.selectionEnd === target.value.length) {
                         nextCol = Math.min(rowInputs.length - 1, colIndex + 1);
                         handled = true;
                     }
@@ -287,7 +302,7 @@
                 if (handled) {
                     e.preventDefault();
                     let nextTr = trs[nextRow];
-                    let nextInputs = Array.from(nextTr.querySelectorAll('input:not([disabled])'));
+                    let nextInputs = Array.from(nextTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
                     
                     // 如果上下移動時，目標列的可輸入格子數量較少，則游標停留在最後一個可用格子
                     let finalCol = Math.min(nextCol, nextInputs.length - 1);
@@ -295,7 +310,7 @@
                     
                     if (nextInput) {
                         nextInput.focus();
-                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
+                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && nextInput.tagName !== 'SELECT') {
                             nextInput.select();
                         }
                     }
@@ -412,14 +427,14 @@
 
         function clearLimitTable() {
             const limitBody = document.getElementById('limitBody');
-            limitBody.querySelectorAll('input').forEach(input => {
-                input.value = '';
+            limitBody.querySelectorAll('input, select').forEach(el => {
+                el.value = '';
             });
             // 重新觸發狀態更新，將右側格子全部上鎖
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 updateRowState(row);
             });
-            validateSubmitButton(); // 加入此行
+            validateSubmitButton();
         }
 
         function updateLimitTable() {
@@ -430,8 +445,8 @@
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 const dr = row.getAttribute('data-dr');
                 currentData[dr] = {};
-                row.querySelectorAll('input').forEach(input => {
-                    currentData[dr][input.name] = input.value;
+                row.querySelectorAll('input, select').forEach(el => {
+                    currentData[dr][el.name] = el.value;
                 });
             });
 
@@ -453,8 +468,18 @@
                 
                 for (let day = 1; day <= 10; day++) {
                     let nameAttr = day - 2; 
-                    let dayVal = pastData[nameAttr] !== undefined ? pastData[nameAttr] : '';
-                    trHtml += `<td class="p-1 ${day===10 ? '' : 'border-r border-gray-300'}"><input type="number" name="${nameAttr}" value="${dayVal}" class="w-full border border-gray-300 rounded limit-input day-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" style="height: 28px; min-width: 45px;"></td>`;
+                    let dayVal = pastData[nameAttr] !== undefined ? String(pastData[nameAttr]) : '';
+                    const validOptions = ['', '3', '2', '1', '0', '-1'];
+                    let optionsHtml = '';
+                    validOptions.forEach(opt => {
+                        optionsHtml += `<option value="${opt}" ${dayVal === opt ? 'selected' : ''}>${opt}</option>`;
+                    });
+
+                    trHtml += `<td class="p-1 ${day===10 ? '' : 'border-r border-gray-300'}">
+                        <select name="${nameAttr}" class="w-full border border-gray-300 rounded limit-input day-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" style="height: 28px; min-width: 45px; text-align-last: center; appearance: auto;">
+                            ${optionsHtml}
+                        </select>
+                    </td>`;
                 }
                 
                 trHtml += `</tr>`;
@@ -465,31 +490,22 @@
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 updateRowState(row);
             });
+            validateSubmitButton();
         }
 
         function setupLimitTableStateLogic() {
-            document.getElementById('limitTable').addEventListener('input', function(e) {
-                const row = e.target.closest('tr.limit-row');
-                if (row) {
-                    updateRowState(row);
-                    validateSubmitButton(); // 加入此行
-                }
+            // 使用 change 與 input 確保所有輸入元素都被捕捉
+            ['input', 'change'].forEach(eventType => {
+                document.getElementById('limitTable').addEventListener(eventType, function(e) {
+                    const row = e.target.closest('tr.limit-row');
+                    if (row) {
+                        updateRowState(row);
+                        validateSubmitButton();
+                    }
+                });
             });
         }
-        function validateSubmitButton() {
-            const submitBtn = document.getElementById('submitBtn');
-            const hasErrors = document.querySelectorAll('.highlight-cell').length > 0;
-        
-            submitBtn.disabled = hasErrors;
-        
-            if (hasErrors) {
-                submitBtn.title = '請先完成高亮(黃色)欄位的填寫';
-                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                submitBtn.title = '';
-                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        }
+
         function updateRowState(row) {
             const limitInput = row.querySelector('input[name="limit"]');
             const limitValue = parseInt(limitInput.value, 10) || 0;
@@ -633,7 +649,7 @@
             document.querySelectorAll('.limit-row').forEach(row => {
                 const dr = row.getAttribute('data-dr');
                 config.limits[dr] = {};
-                row.querySelectorAll('input.limit-input').forEach(input => config.limits[dr][input.name] = input.value);
+                row.querySelectorAll('.limit-input').forEach(el => config.limits[dr][el.name] = el.value);
             });
 
             try {
@@ -703,6 +719,4 @@
         });
     </script>
 </body>
-
 </html>
-
