@@ -68,12 +68,14 @@
                     <span>天的人員會 "預設接受 QOD排班"</span>
                 </div>
                 <div class="mt-4 pt-4 border-t border-gray-200">
-                    <p class="text-sm text-gray-600 mb-1">1. 排班邏輯優先順序：值班上限及加權資料 >> 平分值班天數 >> 平分值班加權 >> 考慮年休及預班 >> 考慮預值班</p>
+                    <p class="text-sm text-gray-600 mb-1">1. 排班邏輯優先順序：4. 特例值班天數設定與加權 >> 平分值班天數 >> 平分值班加權 >> 考慮年休及預班 >> 考慮預值班</p>
                     <p class="text-sm text-gray-600 mb-1">2. 依然排不出來會嘗試降低 "預設接受 QOD排班" 的 cutoff 值</p>
                     <p class="text-sm text-gray-600 mb-1">3. 還是排不出來會強制所有人接受 "QOD值班"</p>
                     <p class="text-sm text-gray-600 mb-1">4. 若勾選啟用QOD排班 >> 嘗試在50次排班內，輸出QOD總數最低的版本</p>
                     <p class="text-sm text-gray-600 mb-1">5. 排班加權：週六=3，週日=2，周五=1，周一~三=0，周四=-1</p>
-                    <p class="text-sm text-gray-600 mb-1">6. 如果預值的日期不符合平均值班上限與加權的原則，將視情況忽略該預值要求。但是可以藉由設定4. 特例值班天數設定與加權，填入加權的數字來強制預值要求符合加權，就可以創造特例</p>
+                    <p class="text-sm text-gray-600 mb-1">6. 如果預值的日期不符合平均值班上限與加權的原則，將視情況忽略該預值要求。但是可以藉由設定4. 特例值班天數設定與加權，填入加權的數字來量身打造，符合預值得加權要求，就可以創造特例</p>
+                    <p class="text-sm text-gray-600 mb-1"> ex 黑傑克希望預值前三個星期日 >> 不符合平均排班的原則 >> 設定4. 特例值班天數設定與加權 >> 設定特例值班天數 = 6 加權 = 2, 2, 2, 0, 0, 0 >> 可以設定預值前三個星期日</p>
+
                 </div>
             </div>
         </div>
@@ -97,7 +99,7 @@
 
         <div class="mb-8">
             <div class="flex justify-between items-end mb-2">
-                <h2 class="font-bold text-blue-700">4. 特例值班天數設定與加權 (day 下方填入加權: -1, 0, 1, 2, 3)</h2>
+                <h2 class="font-bold text-blue-700">4. 特例值班天數設定與加權 (day下方 排班加權：週六=3，週日=2，周五=1，周一~三=0，周四=-1)</h2>
                 <button onclick="clearLimitTable()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors shadow-sm text-sm">
                     清空上限資料
                 </button>
@@ -107,17 +109,17 @@
                     <thead class="bg-gray-200">
                         <tr>
                             <th class="p-2 border-r border-gray-300" style="min-width: 60px; width: 60px;">DR</th>
-                            <th class="p-2 border-r border-gray-300 text-red-700" style="min-width: 90px; width: 90px;">總班數上限</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 1</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 2</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 3</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 4</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 5</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 6</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 7</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 8</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 9</th>
-                            <th class="p-2" style="min-width: 50px;">day 10</th>
+                            <th class="p-2 border-r border-gray-300 text-red-700" style="min-width: 90px; width: 90px;">特例值班天數</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 1 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 2 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 3 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 4 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 5 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 6 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 7 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 8 加權</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 9 加權</th>
+                            <th class="p-2" style="min-width: 50px;">day 10 加權</th>
                         </tr>
                     </thead>
                     <tbody id="limitBody" class="divide-y divide-gray-200"></tbody>
