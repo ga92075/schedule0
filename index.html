@@ -1228,7 +1228,7 @@
         function get_qod_statistics(schedule, ordered_people) {
             let qod_counts = {};
             for (const person of ordered_people) {
-                qod_counts[person] = 0;
+                qod_counts[person] = { qod: 0, consecutive: 0 };
             }
 
             let person_dates = {};
@@ -1242,17 +1242,22 @@
             for (const [person, dates] of Object.entries(person_dates)) {
                 dates.sort((a, b) => a - b);
                 let qod_count = 0;
+                let consecutive_count = 0;
                 for (let i = 0; i < dates.length - 1; i++) {
-                    if (dates[i + 1] - dates[i] === 2) {
+                    const diff = dates[i + 1] - dates[i];
+                    if (diff === 2) {
                         qod_count++;
+                    } else if (diff === 1) {
+                        consecutive_count++;
                     }
                 }
-                qod_counts[person] = qod_count;
+                qod_counts[person] = { qod: qod_count, consecutive: consecutive_count };
             }
 
-            let result = [['人員', 'QOD']];
+            let result = [['人員', 'QOD (隔日值班)', '連續值班']];
             for (const person of ordered_people) {
-                result.push([person, qod_counts[person] || 0]);
+                const stats = qod_counts[person] || { qod: 0, consecutive: 0 };
+                result.push([person, stats.qod, stats.consecutive]);
             }
             return result;
         }
@@ -1394,7 +1399,7 @@
                 let stats = get_qod_statistics(schedule, original_order);
                 let sum = 0;
                 for (let i = 1; i < stats.length; i++) {
-                    sum += stats[i][1];
+                    sum += stats[i][1] + (stats[i][2] || 0) * 2;
                 }
                 return sum;
             }
