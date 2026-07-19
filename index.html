@@ -1209,7 +1209,9 @@
                                 man: man_arr[i]
                             });
                         }
-                        final_message = supplementary_message + final_message;
+                        if (!apply_qod) {
+                            final_message = supplementary_message + final_message;
+                        }
                         return { schedule: final_output, message: final_message, attempts: counting };
                     }
                 } catch (e) {
@@ -1496,7 +1498,7 @@
                 let holiday_row = ['holiday', ...final_output.map(d => d.holiday)];
                 let weight_row = ['值班日加權', ...final_output.map(d => d.holidayrank)];
 
-                let unavail_row = ['不值', ...final_output.map(d => {
+                let unavail_row = ['(不值)', ...final_output.map(d => {
                     const dateVal = d.date;
                     const unavailPeople = personnel_parsed
                         .filter(p => p.UnavailableDates.includes(dateVal))
@@ -1504,7 +1506,7 @@
                     return unavailPeople.join(', ');
                 })];
 
-                let wanted_row = ['要值', ...final_output.map(d => {
+                let wanted_row = ['(要值)', ...final_output.map(d => {
                     const dateVal = d.date;
                     const wantedPeople = personnel_parsed
                         .filter(p => p.WantedDates.includes(dateVal))
@@ -1512,7 +1514,7 @@
                     return wantedPeople.join(', ');
                 })];
 
-                let person_row = ['人員', ...final_output.map(d => d.man)];
+                let person_row = ['#當天值班#', ...final_output.map(d => d.man)];
 
                 let schedule_list = [
                     date_row,
@@ -1912,7 +1914,15 @@
                 let trHtml = '<tr class="hover:bg-gray-100 bg-white">';
                 data[i].forEach((cell, index) => {
                     const stickyClass = index === 0 ? 'preview-sticky bg-gray-100 font-bold' : '';
-                    trHtml += `<td class="p-2 border border-gray-300 ${stickyClass}">${cell ?? ''}</td>`;
+                    let extraClass = '';
+                    if ((data[i][0] === '#當天值班#' || data[i][0] === '人員') && index > 0 && cell && cell !== 'ZAZ') {
+                        if ((index > 1 && data[i][index - 1] === cell) || (index < data[i].length - 1 && data[i][index + 1] === cell)) {
+                            extraClass = 'bg-red-500 text-white font-bold';
+                        } else if ((index > 2 && data[i][index - 2] === cell) || (index < data[i].length - 2 && data[i][index + 2] === cell)) {
+                            extraClass = 'bg-yellow-400 text-black font-bold';
+                        }
+                    }
+                    trHtml += `<td class="p-2 border border-gray-300 ${stickyClass} ${extraClass}">${cell ?? ''}</td>`;
                 });
                 trHtml += '</tr>';
                 tbody.insertAdjacentHTML('beforeend', trHtml);
