@@ -1038,12 +1038,12 @@
                         high_unavailable_cutoff = Math.max(0, high_unavailable_cutoff - 1);
                         final_message += `嘗試次數達 ${counting}，將QOD切點天數設為 ${high_unavailable_cutoff}。\n`;
                         if (high_unavailable_QOD) {
-                            high_unavailable_people = new Set();
                             for (const [person, dates] of Object.entries(person_unavailable_dates)) {
                                 if (dates.size > high_unavailable_cutoff) {
-                                    high_unavailable_people.add(person);
-                                    final_message += `將 ${person} 設為接受QOD值班\n`;
-
+                                    if (!high_unavailable_people.has(person)) {
+                                        high_unavailable_people.add(person);
+                                        final_message += `將 ${person} 設為接受QOD值班\n`;
+                                    }
                                 }
                             }
                         }
