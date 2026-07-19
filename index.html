@@ -1,58 +1,99 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排班助手簡易版</title>
+    <title>真．排班小幫手．改 ver.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         /* 隱藏數字輸入框上下箭頭 */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         /* 表格基礎設定 */
-        th, td { white-space: nowrap; }
-        
+        th,
+        td {
+            white-space: nowrap;
+        }
+
         /* 強制所有表格內的輸入框絕對置中，並移除左右內邊距以避免文字偏移 */
-        .data-cell, .limit-input {
+        .data-cell,
+        .limit-input {
             text-align: center;
             padding-left: 0 !important;
             padding-right: 0 !important;
         }
 
         /* 凍結首欄設定 (精確對齊) */
-        .sticky-col-1 { position: sticky; left: 0; z-index: 10; background-color: white; }
-        .sticky-col-2 { position: sticky; left: 45px; z-index: 10; background-color: white; }
-        
-        thead .sticky-col-1, thead .sticky-col-2 { z-index: 20; background-color: #e5e7eb; }
-        .preview-sticky { position: sticky; left: 0; z-index: 10; border-right: 2px solid #e5e7eb; }
-        
+        .sticky-col-1 {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background-color: white;
+        }
+
+        .sticky-col-2 {
+            position: sticky;
+            left: 45px;
+            z-index: 10;
+            background-color: white;
+        }
+
+        thead .sticky-col-1,
+        thead .sticky-col-2 {
+            z-index: 20;
+            background-color: #e5e7eb;
+        }
+
+        .preview-sticky {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            border-right: 2px solid #e5e7eb;
+        }
+
         /* 動態變色提示底色 */
-        .highlight-cell { background-color: #fef08a !important; transition: background-color 0.3s; }
-        
+        .highlight-cell {
+            background-color: #fef08a !important;
+            transition: background-color 0.3s;
+        }
+
         /* 禁用狀態的按鈕樣式 */
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
+
 <body class="bg-gray-50 text-gray-800 p-4 md:p-8">
     <div class="mx-auto bg-white p-6 md:p-8 rounded-xl shadow-lg" style="max-w: 98%;">
         <h1 class="text-2xl font-bold mb-6 border-b pb-4 text-gray-900">排班參數設定</h1>
 
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
             <div class="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <h2 class="font-bold text-blue-700">1. 排班年、月 & 額外假日非假日設定</h2>
+                <h2 class="font-bold text-blue-700">1. 排班年月與假日設定</h2>
                 <div class="flex gap-4">
-                    <label>年：<input type="number" id="setYear" class="border border-gray-300 rounded px-2 py-1 w-20 text-center"></label>
-                    <label>月：<input type="number" id="setMonth" class="border border-gray-300 rounded px-2 py-1 w-16 text-center"></label>
+                    <label>年：<input type="number" id="setYear"
+                            class="border border-gray-300 rounded px-2 py-1 w-20 text-center"></label>
+                    <label>月：<input type="number" id="setMonth"
+                            class="border border-gray-300 rounded px-2 py-1 w-16 text-center"></label>
                 </div>
                 <div>
                     <label class="block mb-2">國定假日 (Holiday)：</label>
-                    <textarea id="holidays" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="YYYY/MM/DD, YYYY/MM/DD"> 2026/06/19, 2026/09/25, 2026/10/10, 2027/01/01, 2027/02/28, 2027/04/04, 2027/04/05, 2027/06/09, 2027/09/15, 2027/10/10, 2028/01/01</textarea>
+                    <textarea id="holidays" rows="2"
+                        class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none"
+                        placeholder="YYYY/MM/DD, YYYY/MM/DD"> 2026/06/19, 2026/09/25, 2026/10/10, 2027/01/01, 2027/02/28</textarea>
                 </div>
                 <div>
-                    <label class="block mb-2">補班日 (週六日改上班日)：</label>
-                    <textarea id="nonHolidays" rows="1" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none"></textarea>
+                    <label class="block mb-2">非國定假日 (補班等)：</label>
+                    <textarea id="nonHolidays" rows="1"
+                        class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-400 outline-none"></textarea>
                 </div>
             </div>
 
@@ -64,17 +105,17 @@
                 </div>
                 <div class="flex items-center gap-2 pt-2">
                     <span>預班+年休超過</span>
-                    <input type="number" id="qodThreshold" value="7" class="border border-gray-300 rounded px-2 py-1 w-16 text-center">
+                    <input type="number" id="qodThreshold" value="7"
+                        class="border border-gray-300 rounded px-2 py-1 w-16 text-center">
                     <span>天的人員會 "預設接受 QOD排班"</span>
                 </div>
                 <div class="mt-4 pt-4 border-t border-gray-200">
-                    <p class="text-sm text-gray-600 mb-1">1. 排班邏輯優先順序：4. 特例值班天數設定與加權 >> 平分值班天數 >> 平分值班加權 >> 考慮年休及預班 >> 考慮預值班</p>
+                    <p class="text-sm text-gray-600 mb-1">1. 排班邏輯優先順序：值班上限及加權資料 >> 平分值班天數 >> 平分值班加權 >> 考慮年休及預班 >> 考慮預值班
+                    </p>
                     <p class="text-sm text-gray-600 mb-1">2. 依然排不出來會嘗試降低 "預設接受 QOD排班" 的 cutoff 值</p>
                     <p class="text-sm text-gray-600 mb-1">3. 還是排不出來會強制所有人接受 "QOD值班"</p>
                     <p class="text-sm text-gray-600 mb-1">4. 若勾選啟用QOD排班 >> 嘗試在50次排班內，輸出QOD總數最低的版本</p>
                     <p class="text-sm text-gray-600 mb-1">5. 排班加權：週六=3，週日=2，周五=1，周一~三=0，周四=-1</p>
-                    <p class="text-sm text-gray-600 mb-1">6. 如果預值的日期不符合平均值班上限與加權的原則，將視情況忽略該預值要求。但是可以藉由設定4. 特例值班天數設定與加權，填入加權的數字來量身打造，符合預值得加權要求，就可以創造特例</p>
-                    <p class="text-sm text-gray-600 mb-1"> ex 黑傑克希望預值前三個星期日但是不符合平均排班的原則，排不出心儀的班表： 設定4. 特例值班天數設定與加權，設定特例值班天數 = 6 加權 = 2, 2, 2, 0, 0, 0 >> 可以設定預值前三個星期日</p>
                 </div>
             </div>
         </div>
@@ -83,7 +124,8 @@
             <div class="flex justify-between items-end mb-2">
                 <h2 class="font-bold text-blue-700">3. 人員設定 (支援 Excel 範圍貼上)</h2>
                 <div class="flex gap-2">
-                    <button onclick="addPersonRowAction()" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors shadow-sm">
+                    <button onclick="addPersonRowAction()"
+                        class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors shadow-sm">
                         + 新增人員
                     </button>
                 </div>
@@ -98,8 +140,9 @@
 
         <div class="mb-8">
             <div class="flex justify-between items-end mb-2">
-                <h2 class="font-bold text-blue-700">4. 特例值班天數設定與加權 (day下方填入"排班加權"：週六=3，週日=2，周五=1，周一~三=0，周四=-1)</h2>
-                <button onclick="clearLimitTable()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors shadow-sm text-sm">
+                <h2 class="font-bold text-blue-700">4. 人員值班天數上限 (day 下方填入加權: -1, 0, 1, 2, 3)</h2>
+                <button onclick="clearLimitTable()"
+                    class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors shadow-sm text-sm">
                     清空上限資料
                 </button>
             </div>
@@ -108,17 +151,18 @@
                     <thead class="bg-gray-200">
                         <tr>
                             <th class="p-2 border-r border-gray-300" style="min-width: 60px; width: 60px;">DR</th>
-                            <th class="p-2 border-r border-gray-300 text-red-700" style="min-width: 90px; width: 90px;">特例值班天數</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 1 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 2 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 3 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 4 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 5 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 6 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 7 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 8 加權</th>
-                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 9 加權</th>
-                            <th class="p-2" style="min-width: 50px;">day 10 加權</th>
+                            <th class="p-2 border-r border-gray-300 text-red-700" style="min-width: 90px; width: 90px;">
+                                總班數上限</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 1</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 2</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 3</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 4</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 5</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 6</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 7</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 8</th>
+                            <th class="p-2 border-r border-gray-300" style="min-width: 50px;">day 9</th>
+                            <th class="p-2" style="min-width: 50px;">day 10</th>
                         </tr>
                     </thead>
                     <tbody id="limitBody" class="divide-y divide-gray-200"></tbody>
@@ -128,26 +172,34 @@
 
         <div class="border-t pt-4">
             <div class="flex items-center">
-                <button id="submitBtn" onclick="runSchedule()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 flex items-center transition-all">
-                    <svg id="loadingIcon" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <button id="submitBtn" onclick="runSchedule()"
+                    class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 flex items-center transition-all">
+                    <svg id="loadingIcon" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white hidden"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
                     </svg>
                     執行排班運算
                 </button>
                 <span id="statusText" class="ml-4 text-gray-600 font-medium"></span>
             </div>
-            <div id="finalMessageBlock" class="mt-4 p-4 bg-green-50 text-green-800 border border-green-200 rounded hidden whitespace-pre-wrap text-sm font-mono shadow-inner"></div>
+            <div id="finalMessageBlock"
+                class="mt-4 p-4 bg-green-50 text-green-800 border border-green-200 rounded hidden whitespace-pre-wrap text-sm font-mono shadow-inner">
+            </div>
         </div>
 
         <div id="resultContainer" class="mt-8 pt-6 border-t border-gray-300 hidden">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-green-700 text-xl">5. 排班結果預覽</h2>
-                <button id="downloadExcelBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold shadow">
+                <button id="downloadExcelBtn"
+                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold shadow">
                     📥 下載 Excel 完整班表
                 </button>
             </div>
-            
+
             <h3 class="font-bold text-gray-700 mb-2">主班表</h3>
             <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-sm mb-6">
                 <table class="w-full text-sm text-center whitespace-nowrap">
@@ -183,20 +235,1327 @@
         const MAX_DAYS = 15;
         let currentYear = 2026;
         let currentMonth = 1;
-        
+
         let lastScheduleData = null;
         let lastDutyStats = null;
         let lastHrStats = null;
         let lastQodStats = null;
 
+        // ==========================================
+        // 前端純 JS 排班引擎實作
+        // ==========================================
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function range(start, end) {
+            let arr = [];
+            for (let i = start; i < end; i++) arr.push(i);
+            return arr;
+        }
+
+        function parseDateString(str) {
+            if (!str) return null;
+            const parts = str.split(/[-\/]/);
+            if (parts.length !== 3) return null;
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+            return `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+        }
+
+        function getDaysInMonth(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function getWeekdayName(dateObj) {
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            return weekdays[dateObj.getDay()];
+        }
+
+        function formatDateString(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}/${m}/${d}`;
+        }
+
+        function holiday_or_no(weekday_str) {
+            if (weekday_str === "星期六" || weekday_str === "星期日") return 1;
+            return 0;
+        }
+
+        function _the_same_optimized(man_arr, timing, theman, qod, high_unavailable_people = new Set()) {
+            const length = man_arr.length;
+            const person_qod = (qod || high_unavailable_people.has(theman));
+            const minus1 = timing >= 1 ? man_arr[timing - 1] : null;
+            const add1 = timing < length - 1 ? man_arr[timing + 1] : null;
+            if (theman === minus1 || theman === add1) return true;
+            if (!person_qod) {
+                const minus2 = timing >= 2 ? man_arr[timing - 2] : null;
+                const add2 = timing < length - 2 ? man_arr[timing + 2] : null;
+                if (theman === minus2 || theman === add2) return true;
+            }
+            return false;
+        }
+
+        function _exchangable_optimized(man_arr, holiday_arr, date_arr, timing, qod, person_unavailable_dates, high_unavailable_people) {
+            const current_man = man_arr[timing];
+            const current_holiday_rank = holiday_arr[timing];
+            const current_date_num = date_arr[timing];
+            for (let i = 0; i < man_arr.length; i++) {
+                if (i === timing) continue;
+                const target_man = man_arr[i];
+                const target_holiday_rank = holiday_arr[i];
+                const target_date_num = date_arr[i];
+                if (target_holiday_rank === current_holiday_rank) {
+                    if (!_the_same_optimized(man_arr, i, current_man, qod, high_unavailable_people) &&
+                        !_the_same_optimized(man_arr, timing, target_man, qod, high_unavailable_people) &&
+                        current_man !== target_man) {
+                        if (person_unavailable_dates[current_man] && person_unavailable_dates[current_man].has(target_date_num)) continue;
+                        if (person_unavailable_dates[target_man] && person_unavailable_dates[target_man].has(current_date_num)) continue;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function _find_exchangable_optimized(man_arr, holiday_arr, date_arr, timing, qod, person_unavailable_dates, search_range_indices = null, strict_holidayrank = true, locked_indices = null, high_unavailable_people = null) {
+            const current_man = man_arr[timing];
+            const current_holiday_rank = holiday_arr[timing];
+            const current_date_num = date_arr[timing];
+            let possible_indices = search_range_indices ? [...search_range_indices] : range(0, man_arr.length);
+            shuffle(possible_indices);
+            for (let i = 0; i < possible_indices.length; i++) {
+                const timing2 = possible_indices[i];
+                if (timing2 === timing) continue;
+                if (locked_indices && locked_indices.has(timing2)) continue;
+                const target_man = man_arr[timing2];
+                const target_date_num = date_arr[timing2];
+                if (strict_holidayrank && holiday_arr[timing2] !== current_holiday_rank) continue;
+                if (!_the_same_optimized(man_arr, timing2, current_man, qod, high_unavailable_people) &&
+                    !_the_same_optimized(man_arr, timing, target_man, qod, high_unavailable_people) &&
+                    current_man !== target_man) {
+                    if (person_unavailable_dates[current_man] && person_unavailable_dates[current_man].has(target_date_num)) continue;
+                    if (person_unavailable_dates[target_man] && person_unavailable_dates[target_man].has(current_date_num)) continue;
+                    return timing2;
+                }
+            }
+            return null;
+        }
+
+        function arrange_the_schedule(man_array, holidayrank_array, date_array, hope_no_duty_df_columns, wanted_duty_dict, qod, counting, threshold, person_unavailable_dates, high_unavailable_people = null, locked_dates = null) {
+            const locked_indices = new Set();
+            if (locked_dates) {
+                for (let idx = 0; idx < date_array.length; idx++) {
+                    if (locked_dates.has(date_array[idx])) {
+                        locked_indices.add(idx);
+                    }
+                }
+            }
+
+            if (counting > threshold * 5) {
+                for (let i = 0; i < holidayrank_array.length; i++) {
+                    if (holidayrank_array[i] === -1) holidayrank_array[i] = 0;
+                }
+            }
+            if (counting > threshold * 10) {
+                for (let i = 0; i < holidayrank_array.length; i++) {
+                    if (holidayrank_array[i] === 1) holidayrank_array[i] = 0;
+                }
+            }
+
+            const holidayrank_priority_order = [3, 2, 1, -1, 0];
+            for (let t1_pass = 0; t1_pass < 16; t1_pass++) {
+                let violations_fixed_this_pass = false;
+                for (const rank of holidayrank_priority_order) {
+                    let indices_for_current_rank = [];
+                    for (let i = 0; i < holidayrank_array.length; i++) {
+                        if (holidayrank_array[i] === rank) indices_for_current_rank.push(i);
+                    }
+                    shuffle(indices_for_current_rank);
+
+                    for (const timing_idx of indices_for_current_rank) {
+                        if (locked_indices.has(timing_idx)) continue;
+                        const current_man_val = man_array[timing_idx];
+                        if (_the_same_optimized(man_array, timing_idx, current_man_val, qod, high_unavailable_people)) {
+                            let target_date_idx = null;
+                            if (_exchangable_optimized(man_array, holidayrank_array, date_array, timing_idx, qod, person_unavailable_dates, high_unavailable_people)) {
+                                target_date_idx = _find_exchangable_optimized(man_array, holidayrank_array, date_array, timing_idx, qod, person_unavailable_dates, null, true, locked_indices, high_unavailable_people);
+                            }
+                            if (target_date_idx === null) {
+                                let potential_swap_around_indices = [];
+                                for (const offset of [-2, -1, 1, 2]) {
+                                    const check_idx = timing_idx + offset;
+                                    if (check_idx >= 0 && check_idx < man_array.length && man_array[check_idx] === current_man_val) {
+                                        if (!locked_indices.has(check_idx)) potential_swap_around_indices.push(check_idx);
+                                    }
+                                }
+                                if (potential_swap_around_indices.length > 0) {
+                                    target_date_idx = _find_exchangable_optimized(man_array, holidayrank_array, date_array, timing_idx, qod, person_unavailable_dates, potential_swap_around_indices, false, locked_indices, high_unavailable_people);
+                                }
+                            }
+                            if (target_date_idx !== null) {
+                                const temp_man_val = man_array[timing_idx];
+                                man_array[timing_idx] = man_array[target_date_idx];
+                                man_array[target_date_idx] = temp_man_val;
+                                violations_fixed_this_pass = true;
+                            }
+                        }
+                    }
+                }
+                if (!violations_fixed_this_pass) break;
+                if (t1_pass === 15 && violations_fixed_this_pass) return false;
+            }
+
+            let unresolved_hope_no_duty_conflicts = [];
+            for (const person of hope_no_duty_df_columns) {
+                const unavailable_days = person_unavailable_dates[person] || new Set();
+                let conflict_indices_for_person = [];
+                for (let idx = 0; idx < man_array.length; idx++) {
+                    if (man_array[idx] === person && unavailable_days.has(date_array[idx])) {
+                        conflict_indices_for_person.push(idx);
+                    }
+                }
+                shuffle(conflict_indices_for_person);
+                for (const conflict_idx of conflict_indices_for_person) {
+                    if (locked_indices.has(conflict_idx)) continue;
+                    let found_swap = false;
+                    let target_date_idx = _find_exchangable_optimized(man_array, holidayrank_array, date_array, conflict_idx, qod, person_unavailable_dates, null, true, locked_indices, high_unavailable_people);
+                    if (target_date_idx === null) {
+                        let potential_swap_around_indices = [];
+                        for (const offset of [-2, -1, 1, 2]) {
+                            const check_idx = conflict_idx + offset;
+                            if (check_idx >= 0 && check_idx < man_array.length) potential_swap_around_indices.push(check_idx);
+                        }
+                        if (potential_swap_around_indices.length > 0) {
+                            target_date_idx = _find_exchangable_optimized(man_array, holidayrank_array, date_array, conflict_idx, qod, person_unavailable_dates, potential_swap_around_indices, false, locked_indices, high_unavailable_people);
+                        }
+                    }
+                    if (target_date_idx !== null) {
+                        const swapped_man = man_array[target_date_idx];
+                        man_array[conflict_idx] = swapped_man;
+                        man_array[target_date_idx] = person;
+                        found_swap = true;
+                    }
+                    if (!found_swap) unresolved_hope_no_duty_conflicts.push(conflict_idx);
+                }
+            }
+
+            if (unresolved_hope_no_duty_conflicts.length > 0 && counting <= threshold) return false;
+
+            for (let timing_idx = 0; timing_idx < man_array.length; timing_idx++) {
+                const current_man = man_array[timing_idx];
+                if (_the_same_optimized(man_array, timing_idx, current_man, qod, high_unavailable_people)) {
+                    let is_exception = true;
+                    let conflict_neighbors = [];
+                    if (timing_idx > 0 && man_array[timing_idx - 1] === current_man) conflict_neighbors.push(timing_idx - 1);
+                    if (timing_idx < man_array.length - 1 && man_array[timing_idx + 1] === current_man) conflict_neighbors.push(timing_idx + 1);
+                    const person_qod = (qod || (high_unavailable_people && high_unavailable_people.has(current_man)));
+                    if (!person_qod) {
+                        if (timing_idx > 1 && man_array[timing_idx - 2] === current_man) conflict_neighbors.push(timing_idx - 2);
+                        if (timing_idx < man_array.length - 2 && man_array[timing_idx + 2] === current_man) conflict_neighbors.push(timing_idx + 2);
+                    }
+                    for (const conflict_idx of conflict_neighbors) {
+                        if (!(locked_indices.has(timing_idx) && locked_indices.has(conflict_idx))) {
+                            is_exception = false;
+                            break;
+                        }
+                    }
+                    if (!is_exception) return false;
+                }
+            }
+
+            for (const person of hope_no_duty_df_columns) {
+                const unavailable_days = person_unavailable_dates[person] || new Set();
+                for (let day_idx_0_based = 0; day_idx_0_based < man_array.length; day_idx_0_based++) {
+                    if (locked_indices.has(day_idx_0_based)) continue;
+                    if (man_array[day_idx_0_based] === person && unavailable_days.has(date_array[day_idx_0_based])) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function extract_and_create_dataframe_strict(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, qod, date = null, high_unavailable_people = null, locked_dates = null) {
+            if (!high_unavailable_people) high_unavailable_people = new Set();
+            if (!locked_dates) locked_dates = new Set();
+            if (date !== null) {
+                let mask_date_indices = [];
+                for (let i = 0; i < date_arr.length; i++) {
+                    if (date_arr[i] === date) mask_date_indices.push(i);
+                }
+                if (mask_date_indices.length > 0 && man_arr[mask_date_indices[0]] !== 'ZAZ') return true;
+
+                let value = null;
+                if (mask_date_indices.length > 0) {
+                    value = rank_arr[mask_date_indices[0]];
+                }
+                if (value !== null) {
+                    let exclude_1_day = new Set();
+                    for (let i = 0; i < date_arr.length; i++) {
+                        if (date_arr[i] >= date - 1 && date_arr[i] <= date + 1 && date_arr[i] !== date) {
+                            exclude_1_day.add(man_arr[i]);
+                        }
+                    }
+                    let exclude_2_days = new Set();
+                    for (let i = 0; i < date_arr.length; i++) {
+                        if (date_arr[i] >= date - 2 && date_arr[i] <= date + 2 && date_arr[i] !== date) {
+                            exclude_2_days.add(man_arr[i]);
+                        }
+                    }
+
+                    let unavailable_people = [];
+                    for (const [person, dates] of Object.entries(person_unavailable_dates)) {
+                        if (dates.has(date)) unavailable_people.push(person);
+                    }
+                    const unavailable_people_set = new Set(unavailable_people);
+
+                    let cols_with_value = [];
+                    for (const [person, vals] of Object.entries(dfprior_dict)) {
+                        if (vals.includes(value)) cols_with_value.push(person);
+                    }
+
+                    let available_cols = [];
+                    for (const col of cols_with_value) {
+                        if (unavailable_people_set.has(col)) continue;
+                        if (col === 'ZAZ') continue;
+                        if (exclude_1_day.has(col)) continue;
+                        const person_qod = (qod || high_unavailable_people.has(col));
+                        if (!person_qod && exclude_2_days.has(col)) continue;
+                        available_cols.push(col);
+                    }
+
+                    if (available_cols.length > 0) {
+                        const chosen_col = available_cols[Math.floor(Math.random() * available_cols.length)];
+                        const val_idx = dfprior_dict[chosen_col].indexOf(value);
+                        if (val_idx > -1) dfprior_dict[chosen_col].splice(val_idx, 1);
+
+                        for (const idx of mask_date_indices) {
+                            man_arr[idx] = chosen_col;
+                        }
+                    } else {
+                        let scheduled_list = [];
+                        for (let i = 0; i < date_arr.length; i++) {
+                            if (rank_arr[i] === value && man_arr[i] !== 'ZAZ' && date_arr[i] !== date && !locked_dates.has(date_arr[i])) {
+                                scheduled_list.push({ date: date_arr[i], man: man_arr[i] });
+                            }
+                        }
+
+                        let swap_success = false;
+                        if (scheduled_list.length > 0) {
+                            shuffle(scheduled_list);
+                            for (const item of scheduled_list) {
+                                if (swap_success) break;
+                                const target_date = item.date;
+                                const scheduled_person = item.man;
+
+                                if (unavailable_people_set.has(scheduled_person)) continue;
+
+                                let exclude_1_day_check = new Set(exclude_1_day);
+                                exclude_1_day_check.delete(scheduled_person);
+
+                                let exclude_2_days_check = new Set(exclude_2_days);
+                                exclude_2_days_check.delete(scheduled_person);
+
+                                const p_qod = (qod || high_unavailable_people.has(scheduled_person));
+                                if (!p_qod && exclude_2_days_check.has(scheduled_person)) continue;
+
+                                let exclude_1_t = new Set();
+                                for (let i = 0; i < date_arr.length; i++) {
+                                    if (date_arr[i] >= target_date - 1 && date_arr[i] <= target_date + 1 && date_arr[i] !== target_date) {
+                                        exclude_1_t.add(man_arr[i]);
+                                    }
+                                }
+                                exclude_1_t.delete(scheduled_person);
+                                exclude_1_t.delete('ZAZ');
+
+                                let exclude_2_t = new Set();
+                                for (let i = 0; i < date_arr.length; i++) {
+                                    if (date_arr[i] >= target_date - 2 && date_arr[i] <= target_date + 2 && date_arr[i] !== target_date) {
+                                        exclude_2_t.add(man_arr[i]);
+                                    }
+                                }
+                                exclude_2_t.delete(scheduled_person);
+                                exclude_2_t.delete('ZAZ');
+
+                                let candidates = [...cols_with_value];
+                                shuffle(candidates);
+                                for (const candidate of candidates) {
+                                    if (candidate === 'ZAZ') continue;
+                                    if (person_unavailable_dates[candidate] && person_unavailable_dates[candidate].has(target_date)) continue;
+                                    if (exclude_1_t.has(candidate)) continue;
+                                    const c_qod = (qod || high_unavailable_people.has(candidate));
+                                    if (!c_qod && exclude_2_t.has(candidate)) continue;
+
+                                    const val_idx = dfprior_dict[candidate].indexOf(value);
+                                    if (val_idx > -1) dfprior_dict[candidate].splice(val_idx, 1);
+
+                                    for (const idx of mask_date_indices) {
+                                        man_arr[idx] = scheduled_person;
+                                    }
+
+                                    for (let i = 0; i < date_arr.length; i++) {
+                                        if (date_arr[i] === target_date) {
+                                            man_arr[i] = candidate;
+                                        }
+                                    }
+                                    swap_success = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!swap_success) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function extract_and_create_dataframe(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, qod, date = null, high_unavailable_people = null) {
+            if (!high_unavailable_people) high_unavailable_people = new Set();
+            if (date === null) return true;
+
+            let mask_date_indices = [];
+            for (let i = 0; i < date_arr.length; i++) {
+                if (date_arr[i] === date) mask_date_indices.push(i);
+            }
+            if (mask_date_indices.length > 0 && man_arr[mask_date_indices[0]] !== 'ZAZ') return true;
+
+            let value = null;
+            if (mask_date_indices.length > 0) {
+                value = rank_arr[mask_date_indices[0]];
+            }
+            if (value === null) return true;
+
+            let exclude_1_day = new Set();
+            for (let i = 0; i < date_arr.length; i++) {
+                if (date_arr[i] >= date - 1 && date_arr[i] <= date + 1 && date_arr[i] !== date) {
+                    exclude_1_day.add(man_arr[i]);
+                }
+            }
+
+            let exclude_2_days = new Set();
+            for (let i = 0; i < date_arr.length; i++) {
+                if (date_arr[i] >= date - 2 && date_arr[i] <= date + 2 && date_arr[i] !== date) {
+                    exclude_2_days.add(man_arr[i]);
+                }
+            }
+
+            let unavailable_people = [];
+            for (const [person, dates] of Object.entries(person_unavailable_dates)) {
+                if (dates.has(date)) unavailable_people.push(person);
+            }
+            const unavailable_people_set = new Set(unavailable_people);
+
+            let all_possible_people = [];
+            for (const [person, vals] of Object.entries(dfprior_dict)) {
+                if (vals.includes(value)) all_possible_people.push(person);
+            }
+
+            let preferred_available_people = [];
+            for (const col of all_possible_people) {
+                if (unavailable_people_set.has(col)) continue;
+                if (col === 'ZAZ') continue;
+                if (exclude_1_day.has(col)) continue;
+                const person_qod = (qod || high_unavailable_people.has(col));
+                if (!person_qod && exclude_2_days.has(col)) continue;
+                preferred_available_people.push(col);
+            }
+
+            let chosen_col = null;
+            if (preferred_available_people.length > 0) {
+                chosen_col = preferred_available_people[Math.floor(Math.random() * preferred_available_people.length)];
+            } else if (all_possible_people.length > 0) {
+                chosen_col = all_possible_people[Math.floor(Math.random() * all_possible_people.length)];
+            } else {
+                return false;
+            }
+
+            if (chosen_col) {
+                const val_idx = dfprior_dict[chosen_col].indexOf(value);
+                if (val_idx > -1) dfprior_dict[chosen_col].splice(val_idx, 1);
+                for (const idx of mask_date_indices) {
+                    man_arr[idx] = chosen_col;
+                }
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        function fill_df_randomly_prioritize_rows(headers, values_to_fill) {
+            const num_values = values_to_fill.length;
+            const num_cols = headers.length;
+            const required_rows = num_values === 0 ? 1 : Math.ceil(num_values / num_cols);
+
+            let rows = [];
+            for (let r = 0; r < required_rows; r++) {
+                let row = {};
+                for (const h of headers) {
+                    row[h] = null;
+                }
+                rows.push(row);
+            }
+
+            let shuffled = [...values_to_fill];
+            shuffle(shuffled);
+            let pointer = 0;
+
+            for (let r = 0; r < required_rows; r++) {
+                const remaining = num_values - pointer;
+                if (remaining <= 0) break;
+                const num_to_fill = Math.min(remaining, num_cols);
+
+                let col_indices = range(0, num_cols);
+                shuffle(col_indices);
+                const to_fill_indices = col_indices.slice(0, num_to_fill);
+
+                for (let i = 0; i < num_to_fill; i++) {
+                    const col_name = headers[to_fill_indices[i]];
+                    rows[r][col_name] = shuffled[pointer + i];
+                }
+                pointer += num_to_fill;
+            }
+            return rows;
+        }
+
+        function append_values_to_df_prioritize_column_sum(existing_rows, headers, new_values, prioritize_larger_sum = false) {
+            const num_new_values = new_values.length;
+            if (num_new_values === 0) return existing_rows;
+
+            const num_cols = headers.length;
+            let col_sums = {};
+            let col_counts = {};
+            let col_weights = {};
+
+            function get_weight(val) {
+                if (val === null || val === undefined) return 0;
+                if (val === 2 || val === 3) return val + 1;
+                return val;
+            }
+
+            for (const h of headers) {
+                col_sums[h] = 0;
+                col_counts[h] = 0;
+                col_weights[h] = 0;
+            }
+            for (const row of existing_rows) {
+                for (const h of headers) {
+                    const val = row[h];
+                    if (val !== null && val !== undefined) {
+                        col_sums[h] += val;
+                        col_counts[h] += 1;
+                        col_weights[h] += get_weight(val);
+                    }
+                }
+            }
+
+            let shuffled_new = [...new_values];
+            shuffle(shuffled_new);
+            let pointer = 0;
+
+            function get_sorted_headers() {
+                let sorted = [...headers];
+                sorted.sort((a, b) => {
+                    const sumA = col_sums[a];
+                    const sumB = col_sums[b];
+                    if (prioritize_larger_sum) {
+                        return sumB - sumA;
+                    } else {
+                        return sumA - sumB;
+                    }
+                });
+                return sorted;
+            }
+
+            if (existing_rows.length > 0) {
+                let last_row = existing_rows[existing_rows.length - 1];
+                let nan_headers = headers.filter(h => last_row[h] === null || last_row[h] === undefined);
+                if (nan_headers.length > 0) {
+                    nan_headers.sort((a, b) => {
+                        const sumA = col_sums[a];
+                        const sumB = col_sums[b];
+                        return prioritize_larger_sum ? sumB - sumA : sumA - sumB;
+                    });
+
+                    const num_to_fill = Math.min(nan_headers.length, num_new_values - pointer);
+                    for (let i = 0; i < num_to_fill; i++) {
+                        const h = nan_headers[i];
+                        const val = shuffled_new[pointer];
+                        last_row[h] = val;
+
+                        col_sums[h] += val;
+                        col_counts[h] += 1;
+                        col_weights[h] += get_weight(val);
+                        pointer += 1;
+                    }
+                }
+            }
+
+            while (pointer < num_new_values) {
+                const remaining = num_new_values - pointer;
+                const num_to_fill = Math.min(remaining, num_cols);
+
+                let new_row = {};
+                for (const h of headers) new_row[h] = null;
+
+                let sorted_headers = get_sorted_headers();
+                const to_fill_headers = sorted_headers.slice(0, num_to_fill);
+
+                for (const h of to_fill_headers) {
+                    const val = shuffled_new[pointer];
+                    new_row[h] = val;
+
+                    col_sums[h] += val;
+                    col_counts[h] += 1;
+                    col_weights[h] += get_weight(val);
+                    pointer += 1;
+                }
+                existing_rows.push(new_row);
+            }
+            return existing_rows;
+        }
+
+        function run_schedule_generation(year, month, holiday_dates, non_holiday_dates, personnel_parsed, limits_config, apply_qod, high_unavailable_QOD, high_unavailable_cutoff) {
+            let final_message = '';
+            let supplementary_message = '';
+
+            const people_names = personnel_parsed.map(p => p.DR);
+            const num_days_in_month = getDaysInMonth(year, month);
+
+            let datedf = [];
+            const totalDaysToGen = num_days_in_month + 2;
+            for (let d = 1; d <= totalDaysToGen; d++) {
+                const dateObj = new Date(year, month - 1, d);
+                const dateStr = formatDateString(dateObj);
+                const weekday = getWeekdayName(dateObj);
+                let holiday = holiday_or_no(weekday);
+
+                datedf.push({
+                    date: d,
+                    dateStr: dateStr,
+                    weekday: weekday,
+                    holiday: holiday,
+                    holidayrank: 0,
+                    man: 'ZAZ'
+                });
+            }
+
+            const holidaySet = new Set(holiday_dates.map(parseDateString).filter(Boolean));
+            const nonHolidaySet = new Set(non_holiday_dates.map(parseDateString).filter(Boolean));
+
+            for (let i = 0; i < datedf.length; i++) {
+                const ds = datedf[i].dateStr;
+                if (holidaySet.has(ds)) {
+                    datedf[i].holiday = 1;
+                } else if (nonHolidaySet.has(ds)) {
+                    datedf[i].holiday = 0;
+                }
+            }
+
+            for (let i = 0; i < num_days_in_month; i++) {
+                const today_holiday = datedf[i].holiday;
+                const next_holiday = datedf[i + 1].holiday;
+                const next_next_holiday = datedf[i + 2].holiday;
+
+                let rank = 0;
+                if (today_holiday === 1 && next_holiday === 0) rank = 2;
+                else if (today_holiday === 1 && next_holiday === 1) rank = 3;
+                else if (today_holiday === 0 && next_holiday === 1) rank = 1;
+                else if (today_holiday === 0 && next_holiday === 0 && next_next_holiday === 1) rank = -1;
+                else if (today_holiday === 0 && next_holiday === 0 && next_next_holiday === 0) rank = 0;
+
+                datedf[i].holidayrank = rank;
+            }
+
+            let datedf2 = datedf.slice(0, num_days_in_month);
+            let temporal = false;
+            let counting = 1;
+            const threshold = 200000;
+
+            let person_unavailable_dates = {};
+            let wanted_duty_data = {};
+            for (const p of personnel_parsed) {
+                person_unavailable_dates[p.DR] = new Set(p.UnavailableDates);
+                wanted_duty_data[p.DR] = p.WantedDates;
+            }
+
+            let high_unavailable_people = new Set();
+            if (high_unavailable_QOD) {
+                for (const [person, dates] of Object.entries(person_unavailable_dates)) {
+                    if (dates.size > high_unavailable_cutoff) {
+                        high_unavailable_people.add(person);
+                    }
+                }
+                if (high_unavailable_people.size > 0) {
+                    supplementary_message = `檢測到無法值班日超過 ${high_unavailable_cutoff} 天的人員: ${Array.from(high_unavailable_people).join(', ')}，將對其放寬 QOD 限制。\n`;
+                }
+            }
+
+            while (temporal === false) {
+                let people_names_shuffled = [...people_names];
+                shuffle(people_names_shuffled);
+
+                let indices_rank_1 = [];
+                let indices_rank0 = [];
+                let indices_rank1 = [];
+                let indices_rank2 = [];
+                let indices_rank3 = [];
+                for (let i = 0; i < datedf2.length; i++) {
+                    let r = datedf2[i].holidayrank;
+                    if (counting > 15000 && r === -1) {
+                        r = 0;
+                    }
+                    if (r === 3) indices_rank3.push(3);
+                    else if (r === 2) indices_rank2.push(2);
+                    else if (r === 1) indices_rank1.push(1);
+                    else if (r === 0) indices_rank0.push(0);
+                    else if (r === -1) indices_rank_1.push(-1);
+                }
+
+                let limit_cols = [];
+                let people_names_new = [...people_names_shuffled];
+
+                for (const name of people_names_shuffled) {
+                    const limits = limits_config[name];
+                    const hasLimit = limits && parseFloat(limits.limit) > 0;
+                    if (hasLimit) {
+                        limit_cols.push(name);
+                        people_names_new = people_names_new.filter(n => n !== name);
+                    }
+                }
+
+                let count_of_3 = 0, count_of_2 = 0, count_of_1 = 0, count_of_0 = 0, count_of_minus_1 = 0;
+                for (const name of limit_cols) {
+                    const limits = limits_config[name];
+                    for (const [k, v] of Object.entries(limits)) {
+                        if (k !== 'limit' && v !== '' && v !== null && v !== undefined) {
+                            const val = parseFloat(v);
+                            if (val === 3) count_of_3++;
+                            else if (val === 2) count_of_2++;
+                            else if (val === 1) count_of_1++;
+                            else if (val === 0) count_of_0++;
+                            else if (val === -1) count_of_minus_1++;
+                        }
+                    }
+                }
+
+                let new_indices_rank3 = [...indices_rank3];
+                if (count_of_3 > 0) new_indices_rank3 = indices_rank3.slice(0, Math.max(0, indices_rank3.length - count_of_3));
+                let new_indices_rank2 = [...indices_rank2];
+                if (count_of_2 > 0) new_indices_rank2 = indices_rank2.slice(0, Math.max(0, indices_rank2.length - count_of_2));
+                let new_indices_rank1 = [...indices_rank1];
+                if (count_of_1 > 0) new_indices_rank1 = indices_rank1.slice(0, Math.max(0, indices_rank1.length - count_of_1));
+                let new_indices_rank0 = [...indices_rank0];
+                if (count_of_0 > 0) new_indices_rank0 = indices_rank0.slice(0, Math.max(0, indices_rank0.length - count_of_0));
+                let new_indices_rank_1 = [...indices_rank_1];
+                if (count_of_minus_1 > 0) new_indices_rank_1 = indices_rank_1.slice(0, Math.max(0, indices_rank_1.length - count_of_minus_1));
+
+                let dfprior_rows = fill_df_randomly_prioritize_rows(people_names_new, new_indices_rank3);
+                dfprior_rows = append_values_to_df_prioritize_column_sum(dfprior_rows, people_names_new, new_indices_rank2);
+                dfprior_rows = append_values_to_df_prioritize_column_sum(dfprior_rows, people_names_new, new_indices_rank1);
+                dfprior_rows = append_values_to_df_prioritize_column_sum(dfprior_rows, people_names_new, new_indices_rank0);
+                dfprior_rows = append_values_to_df_prioritize_column_sum(dfprior_rows, people_names_new, new_indices_rank_1, false);
+
+                let dfprior_dict = {};
+                for (const name of people_names_new) {
+                    dfprior_dict[name] = [];
+                }
+                for (const row of dfprior_rows) {
+                    for (const name of people_names_new) {
+                        if (row[name] !== null && row[name] !== undefined) {
+                            dfprior_dict[name].push(row[name]);
+                        }
+                    }
+                }
+
+                for (const name of limit_cols) {
+                    dfprior_dict[name] = [];
+                    const limits = limits_config[name];
+                    for (const [k, v] of Object.entries(limits)) {
+                        if (k !== 'limit' && v !== '' && v !== null && v !== undefined) {
+                            dfprior_dict[name].push(parseFloat(v));
+                        }
+                    }
+                }
+
+                if (counting >= 1000) {
+                    let minus_1_counts = {};
+                    for (const p of people_names_new) {
+                        minus_1_counts[p] = dfprior_dict[p].filter(v => v === -1).length;
+                    }
+                    let givers = people_names_new.filter(p => minus_1_counts[p] > 1);
+                    let receivers = people_names_new.filter(p => minus_1_counts[p] === 0);
+                    if (givers.length > 0 && receivers.length > 0) {
+                        const giver = givers[Math.floor(Math.random() * givers.length)];
+                        const receiver = receivers[Math.floor(Math.random() * receivers.length)];
+                        if (dfprior_dict[receiver] && dfprior_dict[receiver].length > 0) {
+                            const receiver_vals = dfprior_dict[receiver];
+                            const val_to_give = receiver_vals[Math.floor(Math.random() * receiver_vals.length)];
+
+                            const idx_val = dfprior_dict[receiver].indexOf(val_to_give);
+                            if (idx_val > -1) dfprior_dict[receiver].splice(idx_val, 1);
+
+                            const idx_neg1 = dfprior_dict[giver].indexOf(-1);
+                            if (idx_neg1 > -1) dfprior_dict[giver].splice(idx_neg1, 1);
+
+                            dfprior_dict[giver].push(val_to_give);
+                            dfprior_dict[receiver].push(-1);
+                        }
+                    }
+                }
+
+                let date_arr = datedf2.map(d => d.date);
+                let man_arr = Array(date_arr.length).fill('ZAZ');
+                let rank_arr = datedf2.map(d => {
+                    let r = d.holidayrank;
+                    if (counting > 15000 && r === -1) {
+                        return 0;
+                    }
+                    return r;
+                });
+
+                if (counting === 1000) final_message += `嘗試次數達 ${counting}，平均分配週四值班的人員。\n`;
+                if (counting === 15000) final_message += `嘗試次數達 ${counting}，將所有 holidayrank 為 -1 的日期調整為 0。\n`;
+                if (!apply_qod && counting > 25000) {
+                    return { schedule: null, message: "trigger_qod_fallback", attempts: counting };
+                }
+                if (counting === 25000) final_message += `嘗試次數達 ${counting}，設定改為允許QOD並重新進行排班。\n`;
+                if (counting > 25000) apply_qod = true;
+
+                if (counting >= 5000) {
+                    if (counting % 500 === 0) {
+
+                        high_unavailable_cutoff = Math.max(0, high_unavailable_cutoff - 1);
+                        final_message += `嘗試次數達 ${counting}，將QOD切點天數設為 ${high_unavailable_cutoff}。\n`;
+                        if (high_unavailable_QOD) {
+                            high_unavailable_people = new Set();
+                            for (const [person, dates] of Object.entries(person_unavailable_dates)) {
+                                if (dates.size > high_unavailable_cutoff) {
+                                    high_unavailable_people.add(person);
+                                    final_message += `將 ${person} 設為接受QOD值班\n`;
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (counting === 1) {
+                    let all_unavailable_dates2 = new Set();
+                    for (const dates of Object.values(person_unavailable_dates)) {
+                        for (const d of dates) all_unavailable_dates2.add(d);
+                    }
+                    let date_arr_set = new Set(date_arr);
+                    let intersection = new Set([...all_unavailable_dates2].filter(x => date_arr_set.has(x)));
+
+                    let failed_days = [];
+                    for (const date_val of intersection) {
+                        let unavailable_count = 0;
+                        for (const person of people_names) {
+                            if (person_unavailable_dates[person].has(date_val)) {
+                                unavailable_count++;
+                            }
+                        }
+                        if (unavailable_count === people_names.length) {
+                            failed_days.push(date_val);
+                        }
+                    }
+                    if (failed_days.length > 0) {
+                        failed_days.sort((a, b) => a - b);
+                        return {
+                            schedule: null,
+                            message: `所有人在"${failed_days.join(', ')}"皆不能值班，請重新設定預班人員`,
+                            attempts: counting
+                        };
+                    }
+                }
+
+                let all_unavailable_dates_list = [];
+                for (const dates of Object.values(person_unavailable_dates)) {
+                    for (const d of dates) all_unavailable_dates_list.push(d);
+                }
+                let date_counts = {};
+                for (const d of all_unavailable_dates_list) {
+                    date_counts[d] = (date_counts[d] || 0) + 1;
+                }
+
+                function sort_dates_by_holidayrank(rank) {
+                    let dates_to_sort = [];
+                    for (let i = 0; i < date_arr.length; i++) {
+                        if (rank_arr[i] === rank) dates_to_sort.push(date_arr[i]);
+                    }
+                    let with_key = dates_to_sort.map(d => ({ date: d, rand: Math.random() }));
+                    with_key.sort((a, b) => {
+                        const countA = date_counts[a.date] || 0;
+                        const countB = date_counts[b.date] || 0;
+                        if (countB !== countA) return countB - countA;
+                        return a.rand - b.rand;
+                    });
+                    return with_key.map(x => x.date);
+                }
+
+                const holidayrank_3_dates = sort_dates_by_holidayrank(3);
+                const holidayrank_2_dates = sort_dates_by_holidayrank(2);
+                const holidayrank_1_dates = sort_dates_by_holidayrank(1);
+                const holidayrank_0_dates = sort_dates_by_holidayrank(0);
+                const holidayrank_minus_1_dates = sort_dates_by_holidayrank(-1);
+
+                let locked_dates_set = new Set();
+                if (counting === 4000) final_message += `嘗試次數達 ${counting} 次，取消安排所有預約值班。\n`;
+
+                try {
+                    if (wanted_duty_data && counting <= 4000) {
+                        let wanted_people_list = Object.keys(wanted_duty_data);
+                        shuffle(wanted_people_list);
+                        for (const person of wanted_people_list) {
+                            if (!dfprior_dict[person]) continue;
+                            const w_dates = wanted_duty_data[person] || [];
+                            for (const w_date of w_dates) {
+                                let target_idx = -1;
+                                for (let i = 0; i < date_arr.length; i++) {
+                                    if (date_arr[i] === w_date) {
+                                        target_idx = i;
+                                        break;
+                                    }
+                                }
+                                if (target_idx === -1) continue;
+                                const target_rank = rank_arr[target_idx];
+                                if (man_arr[target_idx] !== 'ZAZ') {
+                                    locked_dates_set.add(w_date);
+                                    continue;
+                                }
+
+                                if (dfprior_dict[person].includes(target_rank)) {
+                                    const idx_rank = dfprior_dict[person].indexOf(target_rank);
+                                    if (idx_rank > -1) dfprior_dict[person].splice(idx_rank, 1);
+                                    man_arr[target_idx] = person;
+                                    locked_dates_set.add(w_date);
+                                } else {
+                                    const available_values = dfprior_dict[person] || [];
+                                    const valid_trade_values = available_values.filter(v => v < target_rank);
+                                    if (valid_trade_values.length === 0) continue;
+                                    const val_to_trade = Math.max(...valid_trade_values);
+
+                                    let candidates = [];
+                                    for (const p of Object.keys(dfprior_dict)) {
+                                        if (p !== person && dfprior_dict[p].includes(target_rank)) {
+                                            const target_count = dfprior_dict[p].filter(v => v === target_rank).length;
+                                            const trade_count = dfprior_dict[p].filter(v => v === val_to_trade).length;
+                                            candidates.push({ person: p, target_count, trade_count });
+                                        }
+                                    }
+                                    if (candidates.length === 0) continue;
+
+                                    candidates.sort((a, b) => {
+                                        if (b.target_count !== a.target_count) return b.target_count - a.target_count;
+                                        return a.trade_count - b.trade_count;
+                                    });
+                                    const victim = candidates[0].person;
+
+                                    const idx_victim_target = dfprior_dict[victim].indexOf(target_rank);
+                                    if (idx_victim_target > -1) dfprior_dict[victim].splice(idx_victim_target, 1);
+                                    dfprior_dict[victim].push(val_to_trade);
+
+                                    const idx_person_trade = dfprior_dict[person].indexOf(val_to_trade);
+                                    if (idx_person_trade > -1) dfprior_dict[person].splice(idx_person_trade, 1);
+
+                                    man_arr[target_idx] = person;
+                                    locked_dates_set.add(w_date);
+                                }
+                            }
+                        }
+                    }
+
+                    if (counting === 2000) final_message += `嘗試次數達 ${counting} 次嘗試，預約值班排入後改為接受自動調換班。\n`;
+                    if (counting >= 2000) locked_dates_set.clear();
+
+                    for (const i of holidayrank_minus_1_dates) {
+                        if (!extract_and_create_dataframe_strict(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, apply_qod, i, high_unavailable_people, locked_dates_set)) throw new Error();
+                    }
+                    for (const i of holidayrank_1_dates) {
+                        if (!extract_and_create_dataframe_strict(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, apply_qod, i, high_unavailable_people, locked_dates_set)) throw new Error();
+                    }
+                    for (const i of holidayrank_3_dates) {
+                        if (!extract_and_create_dataframe_strict(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, apply_qod, i, high_unavailable_people, locked_dates_set)) throw new Error();
+                    }
+                    for (const i of holidayrank_2_dates) {
+                        if (!extract_and_create_dataframe_strict(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, apply_qod, i, high_unavailable_people, locked_dates_set)) throw new Error();
+                    }
+                    for (const i of holidayrank_0_dates) {
+                        if (!extract_and_create_dataframe(date_arr, man_arr, rank_arr, dfprior_dict, person_unavailable_dates, apply_qod, i, high_unavailable_people)) throw new Error();
+                    }
+
+                    temporal = arrange_the_schedule(man_arr, rank_arr, date_arr, people_names, wanted_duty_data, apply_qod, counting, threshold, person_unavailable_dates, high_unavailable_people, locked_dates_set);
+
+                    if (temporal) {
+                        let final_output = [];
+                        for (let i = 0; i < date_arr.length; i++) {
+                            final_output.push({
+                                date: date_arr[i],
+                                weekday: datedf2[i].weekday,
+                                WD: datedf2[i].weekday.replace('星期', ''),
+                                holiday: datedf2[i].holiday,
+                                holidayrank: rank_arr[i],
+                                man: man_arr[i]
+                            });
+                        }
+                        final_message = supplementary_message + final_message;
+                        return { schedule: final_output, message: final_message, attempts: counting };
+                    }
+                } catch (e) {
+                    // failed this try
+                }
+
+                counting++;
+                if (counting > 30000) break;
+            }
+
+            return { schedule: null, message: "Failed to generate a valid schedule after multiple attempts.", attempts: counting };
+        }
+
+        function get_qod_statistics(schedule, ordered_people) {
+            let qod_counts = {};
+            for (const person of ordered_people) {
+                qod_counts[person] = 0;
+            }
+
+            let person_dates = {};
+            for (const item of schedule) {
+                const person = item.man;
+                if (!person || person === 'ZAZ') continue;
+                if (!person_dates[person]) person_dates[person] = [];
+                person_dates[person].push(parseInt(item.date, 10));
+            }
+
+            for (const [person, dates] of Object.entries(person_dates)) {
+                dates.sort((a, b) => a - b);
+                let qod_count = 0;
+                for (let i = 0; i < dates.length - 1; i++) {
+                    if (dates[i + 1] - dates[i] === 2) {
+                        qod_count++;
+                    }
+                }
+                qod_counts[person] = qod_count;
+            }
+
+            let result = [['人員', 'QOD']];
+            for (const person of ordered_people) {
+                result.push([person, qod_counts[person] || 0]);
+            }
+            return result;
+        }
+
+        function get_duty_statistics(schedule, ordered_people) {
+            const weekday_order = ['一', '二', '三', '四', '五', '六', '日'];
+            let counts = {};
+            for (const person of ordered_people) {
+                counts[person] = { '一': 0, '二': 0, '三': 0, '四': 0, '五': 0, '六': 0, '日': 0, '總值班天數': 0 };
+            }
+
+            for (const item of schedule) {
+                const person = item.man;
+                if (!person || person === 'ZAZ') continue;
+                const wd = item.WD;
+                if (counts[person] && weekday_order.includes(wd)) {
+                    counts[person][wd]++;
+                    counts[person]['總值班天數']++;
+                }
+            }
+
+            let result = [['人員', '一', '二', '三', '四', '五', '六', '日', '總值班天數']];
+            for (const person of ordered_people) {
+                const p_cnt = counts[person];
+                result.push([
+                    person,
+                    p_cnt['一'],
+                    p_cnt['二'],
+                    p_cnt['三'],
+                    p_cnt['四'],
+                    p_cnt['五'],
+                    p_cnt['六'],
+                    p_cnt['日'],
+                    p_cnt['總值班天數']
+                ]);
+            }
+            return result;
+        }
+
+        function get_holidayrank_statistics(schedule, ordered_people) {
+            const desired_ranks = [-1, 0, 1, 2, 3];
+            let counts = {};
+            for (const person of ordered_people) {
+                counts[person] = { '-1': 0, '0': 0, '1': 0, '2': 0, '3': 0, '總值班天數': 0 };
+            }
+
+            for (const item of schedule) {
+                const person = item.man;
+                if (!person || person === 'ZAZ') continue;
+                const rank = String(item.holidayrank);
+                if (counts[person] && desired_ranks.includes(item.holidayrank)) {
+                    counts[person][rank]++;
+                    counts[person]['總值班天數']++;
+                }
+            }
+
+            let result = [['人員', '-1', '0', '1', '2', '3', '總值班天數']];
+            for (const person of ordered_people) {
+                const p_cnt = counts[person];
+                result.push([
+                    person,
+                    p_cnt['-1'],
+                    p_cnt['0'],
+                    p_cnt['1'],
+                    p_cnt['2'],
+                    p_cnt['3'],
+                    p_cnt['總值班天數']
+                ]);
+            }
+            return result;
+        }
+
+        async function localScheduleEngine(config, onProgress) {
+            const year = config.year;
+            const month = config.month;
+            const holidays = config.holidays;
+            const nonHolidays = config.nonHolidays;
+            const qodEnabled = config.qodEnabled;
+            const qodThreshold = config.qodThreshold;
+            const limits_config = config.limits;
+
+            const personnel_parsed = [];
+            for (const p of config.personnel) {
+                const dr = (p.dr || "").trim();
+                if (!dr) continue;
+
+                let unavail = new Set();
+                let wanted = new Set();
+                for (const [key, val] of Object.entries(p)) {
+                    if (!val || val.trim() === '') continue;
+                    const v_int = parseInt(val, 10);
+                    if (isNaN(v_int)) continue;
+
+                    if (key.startsWith('yLeave')) {
+                        unavail.add(v_int);
+                        if (v_int > 1) unavail.add(v_int - 1);
+                    } else if (key.startsWith('pLeave')) {
+                        unavail.add(v_int);
+                    } else if (key.startsWith('wDuty')) {
+                        wanted.add(v_int);
+                    }
+                }
+
+                personnel_parsed.push({
+                    DR: dr,
+                    Name: p.name || "",
+                    ID: p.id || "",
+                    UnavailableDates: Array.from(unavail).sort((a, b) => a - b),
+                    WantedDates: Array.from(wanted).sort((a, b) => a - b)
+                });
+            }
+
+            const num_days_in_month = getDaysInMonth(year, month);
+            for (let d = 1; d < num_days_in_month; d++) {
+                const day1 = d;
+                const day2 = d + 1;
+                const able1 = personnel_parsed.filter(p => !p.UnavailableDates.includes(day1));
+                const able2 = personnel_parsed.filter(p => !p.UnavailableDates.includes(day2));
+                if (able1.length === 1 && able2.length === 1 && able1[0].DR === able2[0].DR) {
+                    return {
+                        status: "error",
+                        message: `日期"${day1}, ${day2}"只有 "${able1[0].DR}"能值班，請重新分配預班人員`
+                    };
+                }
+            }
+
+            const original_order = personnel_parsed.map(p => p.DR);
+            const high_unavailable_QOD_flag = true;
+
+            let final_output = null;
+            let best_qod_score = Infinity;
+            let total_counting = 0;
+            let best_schedule = null;
+            let best_msg = "";
+
+            const start_time = Date.now();
+
+            function calculate_qod_score(schedule) {
+                let stats = get_qod_statistics(schedule, original_order);
+                let sum = 0;
+                for (let i = 1; i < stats.length; i++) {
+                    sum += stats[i][1];
+                }
+                return sum;
+            }
+
+            let runQodOptimization = qodEnabled;
+            let wasFallbackTriggered = false;
+            let fallbackAttempts = 0;
+
+            if (!runQodOptimization) {
+                if (onProgress) {
+                    onProgress("正在生成初始班表...");
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                const res = run_schedule_generation(year, month, holidays, nonHolidays, personnel_parsed, limits_config, false, high_unavailable_QOD_flag, qodThreshold);
+                total_counting += res.attempts;
+
+                if (res.schedule !== null) {
+                    let current_total_qod = calculate_qod_score(res.schedule);
+                    best_qod_score = current_total_qod;
+                    best_schedule = res.schedule;
+                    best_msg = res.message;
+
+                    if (res.attempts < 1000 && best_qod_score > 0) {
+                        for (let i = 0; i < 600; i++) {
+                            if (Date.now() - start_time > 60000) break;
+                            if (onProgress) {
+                                onProgress(`排班難度不高，正在進行優化... (${i + 1}/600)，剩餘時間：${60 - Math.floor((Date.now() - start_time) / 1000)}秒`);
+                                await new Promise(resolve => setTimeout(resolve, 0));
+                            }
+
+                            const res_tmp = run_schedule_generation(year, month, holidays, nonHolidays, personnel_parsed, limits_config, false, high_unavailable_QOD_flag, qodThreshold);
+                            total_counting += res_tmp.attempts;
+
+                            if (res_tmp.attempts >= 999) continue;
+                            if (res_tmp.schedule !== null) {
+                                const current_total_qod = calculate_qod_score(res_tmp.schedule);
+                                if (current_total_qod < best_qod_score) {
+                                    best_qod_score = current_total_qod;
+                                    best_schedule = res_tmp.schedule;
+                                    best_msg = res_tmp.message + `\n[系統提示] 排班難度不高，已自動進行優化排班，最少 QOD 數量: ${best_qod_score}`;
+                                    if (best_qod_score === 0) break;
+                                }
+                            }
+                        }
+                    }
+                    final_output = best_schedule;
+                } else if (res.message === "trigger_qod_fallback") {
+                    runQodOptimization = true;
+                    wasFallbackTriggered = true;
+                    fallbackAttempts = res.attempts;
+                } else if (res.message && res.message.includes("皆不能值班")) {
+                    return {
+                        status: "error",
+                        message: res.message
+                    };
+                }
+            }
+
+            if (runQodOptimization) {
+                best_qod_score = Infinity;
+                best_schedule = null;
+                best_msg = "";
+
+                for (let i = 0; i < 600; i++) {
+                    if (Date.now() - start_time > 60000) break;
+
+                    if (onProgress) {
+                        onProgress(`啟動 QOD 優化模式，尋找最少 QOD 班表中... (${i + 1}/600)，剩餘時間：${60 - Math.floor((Date.now() - start_time) / 1000)}秒`);
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+
+                    const res = run_schedule_generation(year, month, holidays, nonHolidays, personnel_parsed, limits_config, true, high_unavailable_QOD_flag, qodThreshold);
+                    total_counting += res.attempts;
+
+                    if (res.schedule !== null) {
+                        const current_total_qod = calculate_qod_score(res.schedule);
+                        if (current_total_qod < best_qod_score) {
+                            best_qod_score = current_total_qod;
+                            best_schedule = res.schedule;
+                            const prefix = wasFallbackTriggered ? `嘗試次數達 ${fallbackAttempts - 1}，設定改為允許QOD，並重新進行排班。\n` : '';
+                            best_msg = prefix + res.message + `\n[系統提示] 啟動 QOD 優化模式，選用最低總 QOD 數: ${best_qod_score}`;
+                            if (best_qod_score === 0) break;
+                        }
+                    } else if (res.message && res.message.includes("皆不能值班")) {
+                        return {
+                            status: "error",
+                            message: res.message
+                        };
+                    }
+                }
+                final_output = best_schedule;
+            }
+
+            if (final_output !== null) {
+                let day_columns = final_output.map(d => d.date);
+
+                let date_row = ['date', ...day_columns];
+                let weekday_row = ['weekday', ...final_output.map(d => d.weekday)];
+                let wd_row = ['WD', ...final_output.map(d => d.WD)];
+                let holiday_row = ['holiday', ...final_output.map(d => d.holiday)];
+                let weight_row = ['值班日加權', ...final_output.map(d => d.holidayrank)];
+
+                let unavail_row = ['不值', ...final_output.map(d => {
+                    const dateVal = d.date;
+                    const unavailPeople = personnel_parsed
+                        .filter(p => p.UnavailableDates.includes(dateVal))
+                        .map(p => p.DR);
+                    return unavailPeople.join(', ');
+                })];
+
+                let wanted_row = ['要值', ...final_output.map(d => {
+                    const dateVal = d.date;
+                    const wantedPeople = personnel_parsed
+                        .filter(p => p.WantedDates.includes(dateVal))
+                        .map(p => p.DR);
+                    return wantedPeople.join(', ');
+                })];
+
+                let person_row = ['人員', ...final_output.map(d => d.man)];
+
+                let schedule_list = [
+                    date_row,
+                    weekday_row,
+                    wd_row,
+                    holiday_row,
+                    weight_row,
+                    person_row,
+                    unavail_row,
+                    wanted_row,
+
+                ];
+
+                const duty_stats = get_duty_statistics(final_output, original_order);
+                const hr_stats = get_holidayrank_statistics(final_output, original_order);
+                const qod_stats = get_qod_statistics(final_output, original_order);
+
+                return {
+                    status: "success",
+                    schedule: schedule_list,
+                    duty_stats: duty_stats,
+                    hr_stats: hr_stats,
+                    qod_stats: qod_stats,
+                    attempts: total_counting,
+                    message: best_msg
+                };
+            } else {
+                return {
+                    status: "error",
+                    message: "排班條件過於嚴苛，已達 12,000 次暴力破解或 60 秒上限，無法產生無衝突的班表。"
+                };
+            }
+        }
+
         // 還原系統狀態儲存區
         let historyStack = [];
         let isUndoAction = false;
 
+
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
             let nextYear = today.getFullYear();
-            let nextMonth = today.getMonth() + 2; 
+            let nextMonth = today.getMonth() + 2;
 
             if (nextMonth > 12) {
                 nextMonth = 1;
@@ -205,12 +1564,12 @@
 
             document.getElementById('setYear').value = nextYear;
             document.getElementById('setMonth').value = nextMonth;
-            
+
             currentYear = nextYear;
             currentMonth = nextMonth;
 
             initTableHeaders();
-            
+
             // 停用狀態儲存以避免初始化過程產生過多歷史紀錄
             isUndoAction = true;
             addPersonRow('A', '黑傑克', 'DOC1001A');
@@ -218,52 +1577,36 @@
             addPersonRow('C', '', '');
             addPersonRow('D', '', '');
             isUndoAction = false;
-            
+
             updateLimitTable();
             saveState(); // 儲存初始狀態
 
             setupPasteHandler();
             setupLimitTableStateLogic();
-            
+
             // 將兩個表格綁定鍵盤導航邏輯
             setupTableNavigation('personnelTable');
             setupTableNavigation('limitTable');
-            
+
             setupUndoListeners();
         });
-
-        // 驗證按鈕狀態
-        function validateSubmitButton() {
-            const submitBtn = document.getElementById('submitBtn');
-            const hasErrors = document.querySelectorAll('.highlight-cell').length > 0;
-            
-            submitBtn.disabled = hasErrors;
-            
-            if (hasErrors) {
-                submitBtn.title = '請先完成高亮(黃色)欄位的填寫';
-                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                submitBtn.title = '';
-                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        }
 
         // --- 快捷鍵導航邏輯 (共用) ---
         function setupTableNavigation(tableId) {
             const table = document.getElementById(tableId);
             if (!table) return;
 
-            table.addEventListener('keydown', function(e) {
+            table.addEventListener('keydown', function (e) {
                 const target = e.target;
-                if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT') return;
+                if (target.tagName !== 'INPUT') return;
 
                 const tr = target.closest('tr');
                 const tbody = tr.parentElement;
                 if (tbody.tagName !== 'TBODY') return;
 
                 const trs = Array.from(tbody.querySelectorAll('tr'));
-                const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled]), select:not([disabled])')); // 僅在啟用狀態的 input 之間導航
-                
+                const rowInputs = Array.from(tr.querySelectorAll('input:not([disabled])')); // 僅在啟用狀態的 input 之間導航
+
                 // 如果目前所在的 input 找不到（可能被 disabled 了），則中止
                 if (rowInputs.indexOf(target) === -1) return;
 
@@ -281,12 +1624,12 @@
                     nextRow = Math.min(trs.length - 1, rowIndex + 1);
                     handled = true;
                 } else if (e.key === 'ArrowLeft') {
-                    if (target.type === 'number' || target.tagName === 'SELECT' || target.selectionStart === 0) {
+                    if (target.type === 'number' || target.selectionStart === 0) {
                         nextCol = Math.max(0, colIndex - 1);
                         handled = true;
                     }
                 } else if (e.key === 'ArrowRight') {
-                    if (target.type === 'number' || target.tagName === 'SELECT' || target.selectionEnd === target.value.length) {
+                    if (target.type === 'number' || target.selectionEnd === target.value.length) {
                         nextCol = Math.min(rowInputs.length - 1, colIndex + 1);
                         handled = true;
                     }
@@ -298,19 +1641,19 @@
                     }
                     handled = true;
                 }
-                
+
                 if (handled) {
                     e.preventDefault();
                     let nextTr = trs[nextRow];
-                    let nextInputs = Array.from(nextTr.querySelectorAll('input:not([disabled]), select:not([disabled])'));
-                    
+                    let nextInputs = Array.from(nextTr.querySelectorAll('input:not([disabled])'));
+
                     // 如果上下移動時，目標列的可輸入格子數量較少，則游標停留在最後一個可用格子
                     let finalCol = Math.min(nextCol, nextInputs.length - 1);
                     let nextInput = nextInputs[finalCol];
-                    
+
                     if (nextInput) {
                         nextInput.focus();
-                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && nextInput.tagName !== 'SELECT') {
+                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
                             nextInput.select();
                         }
                     }
@@ -327,21 +1670,21 @@
                 row.querySelectorAll('input').forEach(input => rowData.push(input.value));
                 state.push(rowData);
             });
-            
+
             historyStack.push(state);
             if (historyStack.length > 30) historyStack.shift(); // 限制最多 30 步以防記憶體溢出
         }
 
         function undo() {
             if (historyStack.length <= 1) return;
-            
+
             isUndoAction = true;
             historyStack.pop(); // 移除當前狀態
             const previousState = historyStack[historyStack.length - 1];
-            
+
             const tbody = document.getElementById('personnelBody');
             tbody.innerHTML = '';
-            
+
             previousState.forEach(rowData => {
                 addPersonRow(rowData[0], rowData[1], rowData[2]);
                 const newRow = tbody.lastElementChild;
@@ -350,22 +1693,22 @@
                     if (inputs[i]) inputs[i].value = val;
                 });
             });
-            
+
             updateLimitTable();
             isUndoAction = false;
         }
 
         function setupUndoListeners() {
             // 監聽鍵盤 Ctrl+Z / Cmd+Z
-            document.addEventListener('keydown', function(e) {
+            document.addEventListener('keydown', function (e) {
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
                     undo();
                 }
             });
-            
+
             // 監聽手動修改 (失焦後儲存狀態)
-            document.getElementById('personnelTable').addEventListener('change', function(e) {
+            document.getElementById('personnelTable').addEventListener('change', function (e) {
                 if (e.target.tagName === 'INPUT') {
                     saveState();
                 }
@@ -384,10 +1727,10 @@
                 <th class="p-1 text-center font-semibold bg-green-100 border-r border-b border-gray-300" colspan="${MAX_DAYS}">預假日期 (最多${MAX_DAYS}日)</th>
                 <th class="p-1 text-center font-semibold bg-yellow-100 border-b border-gray-300" colspan="${MAX_DAYS}">預值日期 (最多${MAX_DAYS}日)</th>
             </tr><tr>`;
-            
-            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-blue-50 text-gray-600 border-b border-gray-300 ${i===MAX_DAYS?'border-r':''} min-w-[38px] w-[38px]">${i}</th>`;
-            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-green-50 text-gray-600 border-b border-gray-300 ${i===MAX_DAYS?'border-r':''} min-w-[38px] w-[38px]">${i}</th>`;
-            for(let i=1; i<=MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-yellow-50 text-gray-600 border-b border-gray-300 min-w-[38px] w-[38px]">${i}</th>`;
+
+            for (let i = 1; i <= MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-blue-50 text-gray-600 border-b border-gray-300 ${i === MAX_DAYS ? 'border-r' : ''} min-w-[38px] w-[38px]">${i}</th>`;
+            for (let i = 1; i <= MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-green-50 text-gray-600 border-b border-gray-300 ${i === MAX_DAYS ? 'border-r' : ''} min-w-[38px] w-[38px]">${i}</th>`;
+            for (let i = 1; i <= MAX_DAYS; i++) tr1 += `<th class="p-1 text-xs text-center bg-yellow-50 text-gray-600 border-b border-gray-300 min-w-[38px] w-[38px]">${i}</th>`;
             thead.innerHTML = tr1 + `</tr>`;
         }
 
@@ -395,7 +1738,7 @@
             const tbody = document.getElementById('personnelBody');
             const tr = document.createElement('tr');
             tr.className = 'personnel-row hover:bg-gray-50';
-            
+
             let html = `
                 <td class="p-1 text-center sticky-col-1 bg-white border-r border-b border-gray-200"><button onclick="removeRowAction(this)" class="text-red-500 hover:bg-red-50 rounded px-2 font-bold">&times;</button></td>
                 <td class="p-1 text-center sticky-col-2 bg-white border-r border-b border-gray-200"><input type="text" name="dr" value="${dr}" oninput="updateLimitTable()" class="w-full border border-gray-300 rounded data-cell dr-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>
@@ -403,9 +1746,9 @@
                 <td class="p-1 text-center border-r border-b border-gray-200"><input type="text" name="id" value="${id}" class="w-full border border-gray-300 rounded text-xs data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>
             `;
 
-            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i===MAX_DAYS?'border-r':''}"><input type="number" name="yLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
-            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i===MAX_DAYS?'border-r':''}"><input type="number" name="pLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
-            for(let i=1; i<=MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200"><input type="number" name="wDuty${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+            for (let i = 1; i <= MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i === MAX_DAYS ? 'border-r' : ''}"><input type="number" name="yLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+            for (let i = 1; i <= MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200 ${i === MAX_DAYS ? 'border-r' : ''}"><input type="number" name="pLeave${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
+            for (let i = 1; i <= MAX_DAYS; i++) html += `<td class="p-1 border-b border-gray-200"><input type="number" name="wDuty${i}" class="w-full border border-gray-300 rounded data-cell focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px;"></td>`;
 
             tr.innerHTML = html;
             tbody.appendChild(tr);
@@ -427,61 +1770,50 @@
 
         function clearLimitTable() {
             const limitBody = document.getElementById('limitBody');
-            limitBody.querySelectorAll('input, select').forEach(el => {
-                el.value = '';
+            limitBody.querySelectorAll('input').forEach(input => {
+                input.value = '';
             });
             // 重新觸發狀態更新，將右側格子全部上鎖
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 updateRowState(row);
             });
-            validateSubmitButton();
         }
 
         function updateLimitTable() {
             const limitBody = document.getElementById('limitBody');
-            
+
             // 1. 備份重繪前的原有輸入資料
             const currentData = {};
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 const dr = row.getAttribute('data-dr');
                 currentData[dr] = {};
-                row.querySelectorAll('input, select').forEach(el => {
-                    currentData[dr][el.name] = el.value;
+                row.querySelectorAll('input').forEach(input => {
+                    currentData[dr][input.name] = input.value;
                 });
             });
 
             // 2. 清空並重建表格
-            limitBody.innerHTML = ''; 
+            limitBody.innerHTML = '';
             const drInputs = document.querySelectorAll('.dr-input');
 
             drInputs.forEach((input, index) => {
                 const drValue = input.value.trim() || `Row_${index}`;
                 const pastData = currentData[drValue] || {}; // 還原備份資料
-                
+
                 const limitVal = pastData['limit'] !== undefined ? pastData['limit'] : '';
-                
+
                 let trHtml = `
                     <tr class="limit-row bg-white hover:bg-gray-50 transition-colors" data-dr="${drValue}">
                         <td class="p-2 border-r border-gray-300 font-bold bg-gray-100">${drValue}</td>
                         <td class="p-1 border-r border-gray-300"><input type="number" name="limit" value="${limitVal}" class="w-full border border-gray-300 rounded bg-red-50 limit-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" style="height: 28px; min-width: 60px;"></td>
                 `;
-                
-                for (let day = 1; day <= 10; day++) {
-                    let nameAttr = day - 2; 
-                    let dayVal = pastData[nameAttr] !== undefined ? String(pastData[nameAttr]) : '';
-                    const validOptions = ['', '3', '2', '1', '0', '-1'];
-                    let optionsHtml = '';
-                    validOptions.forEach(opt => {
-                        optionsHtml += `<option value="${opt}" ${dayVal === opt ? 'selected' : ''}>${opt}</option>`;
-                    });
 
-                    trHtml += `<td class="p-1 ${day===10 ? '' : 'border-r border-gray-300'}">
-                        <select name="${nameAttr}" class="w-full border border-gray-300 rounded limit-input day-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" style="height: 28px; min-width: 45px; text-align-last: center; appearance: auto;">
-                            ${optionsHtml}
-                        </select>
-                    </td>`;
+                for (let day = 1; day <= 10; day++) {
+                    let nameAttr = day - 2;
+                    let dayVal = pastData[nameAttr] !== undefined ? pastData[nameAttr] : '';
+                    trHtml += `<td class="p-1 ${day === 10 ? '' : 'border-r border-gray-300'}"><input type="number" name="${nameAttr}" value="${dayVal}" class="w-full border border-gray-300 rounded limit-input day-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors" style="height: 28px; min-width: 45px;"></td>`;
                 }
-                
+
                 trHtml += `</tr>`;
                 limitBody.insertAdjacentHTML('beforeend', trHtml);
             });
@@ -490,19 +1822,14 @@
             limitBody.querySelectorAll('tr.limit-row').forEach(row => {
                 updateRowState(row);
             });
-            validateSubmitButton();
         }
 
         function setupLimitTableStateLogic() {
-            // 使用 change 與 input 確保所有輸入元素都被捕捉
-            ['input', 'change'].forEach(eventType => {
-                document.getElementById('limitTable').addEventListener(eventType, function(e) {
-                    const row = e.target.closest('tr.limit-row');
-                    if (row) {
-                        updateRowState(row);
-                        validateSubmitButton();
-                    }
-                });
+            document.getElementById('limitTable').addEventListener('input', function (e) {
+                const row = e.target.closest('tr.limit-row');
+                if (row) {
+                    updateRowState(row);
+                }
             });
         }
 
@@ -518,7 +1845,7 @@
                     // 解鎖開放輸入
                     input.disabled = false;
                     input.classList.remove('bg-gray-200', 'cursor-not-allowed', 'text-transparent');
-                    
+
                     if (val === '' || !validNumbers.includes(val)) {
                         input.classList.add('highlight-cell');
                     } else {
@@ -535,7 +1862,7 @@
         }
 
         function setupPasteHandler() {
-            document.getElementById('personnelTable').addEventListener('paste', function(e) {
+            document.getElementById('personnelTable').addEventListener('paste', function (e) {
                 e.preventDefault();
                 const activeElement = document.activeElement;
                 if (!activeElement.classList.contains('data-cell')) return;
@@ -552,7 +1879,7 @@
 
                 for (let r = 0; r < rows.length; r++) {
                     const rowData = rows[r];
-                    if (rowData.length === 1 && rowData[0] === '') continue; 
+                    if (rowData.length === 1 && rowData[0] === '') continue;
 
                     let targetRow = trs[startRowIdx + r];
                     if (!targetRow) { addPersonRow(); targetRow = tbody.querySelectorAll('tr')[startRowIdx + r]; }
@@ -600,7 +1927,7 @@
             let html = '<thead class="bg-gray-200 text-gray-700"><tr>';
             data[0].forEach(col => html += `<th class="p-2 border border-gray-300 font-semibold">${col ?? ''}</th>`);
             html += '</tr></thead><tbody class="divide-y divide-gray-200">';
-            
+
             for (let i = 1; i < data.length; i++) {
                 html += '<tr class="hover:bg-gray-100 bg-white">';
                 data[i].forEach((cell, index) => {
@@ -619,9 +1946,9 @@
             const loadingIcon = document.getElementById('loadingIcon');
             const finalMessageBlock = document.getElementById('finalMessageBlock');
             const resultContainer = document.getElementById('resultContainer');
-            
+
             btn.disabled = true;
-            loadingIcon.classList.remove('hidden'); 
+            loadingIcon.classList.remove('hidden');
             statusText.textContent = '運算中，請勿關閉網頁... (可能需要數十秒)';
             resultContainer.classList.add('hidden');
             finalMessageBlock.classList.add('hidden');
@@ -649,66 +1976,63 @@
             document.querySelectorAll('.limit-row').forEach(row => {
                 const dr = row.getAttribute('data-dr');
                 config.limits[dr] = {};
-                row.querySelectorAll('.limit-input').forEach(el => config.limits[dr][el.name] = el.value);
+                row.querySelectorAll('input.limit-input').forEach(input => config.limits[dr][input.name] = input.value);
             });
 
             try {
-                const response = await fetch('https://schedule-api-653344616395.asia-east1.run.app/api/schedule', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(config)
+                const result = await localScheduleEngine(config, (msg) => {
+                    statusText.textContent = msg;
                 });
-                
-                const result = await response.json();
-                
+
                 if (result.status === 'success') {
                     statusText.textContent = `✅ 計算完成！(總嘗試次數：${result.attempts})`;
-                    
+
                     if (result.message && result.message.trim() !== '') {
                         finalMessageBlock.textContent = result.message;
                         finalMessageBlock.classList.remove('hidden');
                     }
-                    
+
                     lastScheduleData = result.schedule;
                     lastDutyStats = result.duty_stats;
                     lastHrStats = result.hr_stats;
                     lastQodStats = result.qod_stats;
-                    
+
                     resultContainer.classList.remove('hidden');
                     renderResultTable(result.schedule);
                     renderGenericTable('dutyTable', result.duty_stats);
                     renderGenericTable('hrTable', result.hr_stats);
                     renderGenericTable('qodTable', result.qod_stats);
-                    
+
                     resultContainer.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     statusText.textContent = '❌ 排班錯誤！';
                     alert("排班失敗：" + result.message);
                 }
             } catch (error) {
-                statusText.textContent = '❌ 連線失敗！';
-                alert("無法連線至後端伺服器，請確認終端機已啟動 Python 伺服器 (指令: python app.py)。");
+                console.error(error);
+                statusText.textContent = '❌ 排班錯誤！';
+                alert("排班運算過程中發生未預期的錯誤：" + error.message);
             } finally {
-                validateSubmitButton();
-                loadingIcon.classList.add('hidden'); 
+                btn.disabled = false;
+                loadingIcon.classList.add('hidden');
             }
         }
 
         document.getElementById('downloadExcelBtn').addEventListener('click', () => {
             if (!lastScheduleData) return;
-            
+
             let exportData = [];
             exportData.push(...lastScheduleData);
-            exportData.push([]); 
-            
+            exportData.push([]);
+
             exportData.push(['星期幾值班統計']);
             exportData.push(...lastDutyStats);
             exportData.push([]);
-            
+
             exportData.push(['假日類型值班統計']);
             exportData.push(...lastHrStats);
             exportData.push([]);
-            
+
             exportData.push(['QOD (隔日值班) 統計']);
             exportData.push(...lastQodStats);
 
@@ -719,4 +2043,5 @@
         });
     </script>
 </body>
+
 </html>
